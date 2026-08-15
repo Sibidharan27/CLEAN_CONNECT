@@ -20,7 +20,7 @@
         "NSLocationAlwaysAndWhenInUseUsageDescription": "CleanConnect+ needs background location to track truck routes."
       },
       "config": {
-        "googleMapsApiKey": "YOUR_GOOGLE_MAPS_API_KEY"
+        "googleMapsApiKey": "AIzaSyB6m4Hn6uJdg4Yuaql3pwtiQl33GgNam3U"
       }
     },
     "android": {
@@ -38,7 +38,7 @@
       ],
       "config": {
         "googleMaps": {
-          "apiKey": "YOUR_GOOGLE_MAPS_API_KEY"
+          "apiKey": "AIzaSyB6m4Hn6uJdg4Yuaql3pwtiQl33GgNam3U"
         }
       }
     },

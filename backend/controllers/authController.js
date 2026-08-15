@@ -42,3 +42,18 @@ export async function login(req, res, next) {
 export const me = (req, res) => {
   res.json({ user: buildUserPayload(req.user) });
 };
+
+// PATCH /auth/me — update profile fields
+export async function updateMe(req, res, next) {
+  try {
+    const { name, phone, area, address } = req.body;
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { ...(name && { name }), ...(phone !== undefined && { phone }), ...(area !== undefined && { area }), ...(address !== undefined && { address }) },
+      { new: true, runValidators: true }
+    );
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json({ user: buildUserPayload(user) });
+  } catch (e) { next(e); }
+}
+

@@ -16,42 +16,94 @@ export const LocationProvider = ({ children }) => {
     return status === 'granted';
   };
 
-  // ─── One-shot GPS fix ───────────────────────────────────────────────────────
+  // ─── One-shot GPS fix (fast: Balanced first, then upgrades silently) ─────────
   const getCurrentLocation = async () => {
     setIsLocating(true);
     try {
       const granted = permissionGranted || (await requestPermission());
       if (!granted) throw new Error('Location permission denied');
 
-      const pos = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
+      // Phase 1: Fast fix using Balanced accuracy (returns in ~1-2 seconds)
+      const fastPos = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+        maximumAge: 10000,   // accept cached position up to 10s old
+        timeout: 5000,
       });
 
-      const address = await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
-
-      const loc = {
-        latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude,
-        address,
+      const fastLoc = {
+        latitude: fastPos.coords.latitude,
+        longitude: fastPos.coords.longitude,
+        address: `${fastPos.coords.latitude.toFixed(4)}° N, ${fastPos.coords.longitude.toFixed(4)}° E`,
       };
-      setLocation(loc);
-      return loc;
+      setLocation(fastLoc);
+
+      // Phase 2: Silently upgrade to High accuracy in background
+      Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+        maximumAge: 0,
+        timeout: 15000,
+      }).then(async (precisePos) => {
+        const address = await reverseGeocode(precisePos.coords.latitude, precisePos.coords.longitude);
+        setLocation({
+          latitude: precisePos.coords.latitude,
+          longitude: precisePos.coords.longitude,
+          address,
+        });
+      }).catch(() => {
+        // Phase 2 failed silently — Phase 1 result still shown
+      });
+
+      return fastLoc;
+    } catch (e) {
+      // Last resort: try with any cached location
+      try {
+        const lastKnown = await Location.getLastKnownPositionAsync();
+        if (lastKnown) {
+          const loc = {
+            latitude: lastKnown.coords.latitude,
+            longitude: lastKnown.coords.longitude,
+            address: `${lastKnown.coords.latitude.toFixed(4)}° N, ${lastKnown.coords.longitude.toFixed(4)}° E`,
+          };
+          setLocation(loc);
+          return loc;
+        }
+      } catch {}
+      throw e;
     } finally {
       setIsLocating(false);
     }
   };
 
-  // ─── Continuous GPS watch (for drivers) ────────────────────────────────────
+  // ─── Continuous GPS watch (for drivers — uses best accuracy) ────────────────
   const startWatching = async (onUpdate) => {
     const granted = permissionGranted || (await requestPermission());
     if (!granted) return;
 
+    // Stop any existing watcher first
+    if (watcherRef.current) {
+      watcherRef.current.remove();
+      watcherRef.current = null;
+    }
+
     watcherRef.current = await Location.watchPositionAsync(
-      { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 10 },
+      {
+        accuracy: Location.Accuracy.BestForNavigation,
+        timeInterval: 3000,       // update every 3 seconds
+        distanceInterval: 5,      // or every 5 meters
+      },
       async (pos) => {
-        const address = await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
-        const loc = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, address, heading: pos.coords.heading, speed: pos.coords.speed };
+        const loc = {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          address: `${pos.coords.latitude.toFixed(4)}° N, ${pos.coords.longitude.toFixed(4)}° E`,
+          heading: pos.coords.heading,
+          speed: pos.coords.speed,
+        };
         setLocation(loc);
+        // Reverse geocode in background (don't block the update)
+        reverseGeocode(pos.coords.latitude, pos.coords.longitude).then(address => {
+          setLocation(prev => prev ? { ...prev, address } : loc);
+        }).catch(() => {});
         if (onUpdate) onUpdate(loc);
       }
     );
@@ -70,7 +122,6 @@ export const LocationProvider = ({ children }) => {
       );
       const data = await res.json();
       if (data.display_name) {
-        // Shorten: take first 2 parts (road, suburb)
         const parts = data.display_name.split(', ');
         return parts.slice(0, 3).join(', ');
       }

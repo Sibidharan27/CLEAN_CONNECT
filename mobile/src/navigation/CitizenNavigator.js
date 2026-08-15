@@ -17,9 +17,50 @@ import CollectionSchedule from '../screens/Citizen/CollectionSchedule';
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-const HomeStack = () => (
+// ── Tab screens (visible in bottom tab bar) ──────────────────────────────────
+const HomeTab = () => (
+  <Tab.Navigator
+    screenOptions={({ route }) => ({
+      headerShown: false,
+      tabBarStyle: styles.tabBar,
+      tabBarActiveTintColor: Colors.tabActive,
+      tabBarInactiveTintColor: Colors.tabInactive,
+      tabBarLabelStyle: {
+        fontSize: 11,
+        fontFamily: 'Poppins_500Medium',
+        marginTop: 2,
+      },
+      tabBarIcon: ({ focused, color }) => {
+        const icons = {
+          Home: focused ? 'home' : 'home-outline',
+          Track: focused ? 'truck-fast' : 'truck-outline',
+          Notifications: focused ? 'bell' : 'bell-outline',
+          Profile: focused ? 'account' : 'account-outline',
+        };
+        return (
+          <View style={focused ? styles.activeTabIconBg : styles.tabIconBg}>
+            <MaterialCommunityIcons name={icons[route.name] || 'home-outline'} size={focused ? 22 : 20} color={color} />
+          </View>
+        );
+      },
+    })}
+  >
+    <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: 'Home' }} />
+    <Tab.Screen name="Track" component={LiveTracking} options={{ tabBarLabel: 'Track' }} />
+    <Tab.Screen name="Notifications" component={Notifications} options={{ tabBarLabel: 'Alerts' }} />
+    <Tab.Screen name="Profile" component={Profile} options={{ tabBarLabel: 'Profile' }} />
+  </Tab.Navigator>
+);
+
+// ── Root stack — tab bar is the main screen, modal screens slide on top ───────
+// All modal/push screens are registered HERE so they're reachable from any tab
+const CitizenNavigator = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="HomeMain" component={HomeScreen} />
+    {/* Main tabs */}
+    <Stack.Screen name="CitizenTabs" component={HomeTab} />
+
+    {/* Stack screens accessible from any tab via navigation.navigate() */}
+    <Stack.Screen name="LiveTracking" component={LiveTracking} />
     <Stack.Screen name="ReportComplaint" component={ReportComplaint} />
     <Stack.Screen name="ComplaintHistory" component={ComplaintHistory} />
     <Stack.Screen name="ComplaintDetails" component={ComplaintDetails} />
@@ -27,75 +68,15 @@ const HomeStack = () => (
   </Stack.Navigator>
 );
 
-const TrackStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="TrackMain" component={LiveTracking} />
-  </Stack.Navigator>
-);
-
-const NotificationsStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="NotificationsMain" component={Notifications} />
-  </Stack.Navigator>
-);
-
-const ProfileStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="ProfileMain" component={Profile} />
-  </Stack.Navigator>
-);
-
-const TAB_CONFIG = [
-  { name: 'Home', component: HomeStack, icon: 'home', activeIcon: 'home', label: 'Home' },
-  { name: 'Track', component: TrackStack, icon: 'truck-outline', activeIcon: 'truck-fast', label: 'Track' },
-  { name: 'Notifications', component: NotificationsStack, icon: 'bell-outline', activeIcon: 'bell', label: 'Alerts', badge: 2 },
-  { name: 'Profile', component: ProfileStack, icon: 'account-outline', activeIcon: 'account', label: 'Profile' },
-];
-
-const CitizenNavigator = () => {
-  return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: Colors.tabBackground,
-          borderTopWidth: 0,
-          height: 70,
-          paddingBottom: 10,
-          paddingTop: 6,
-          ...Shadows.lg,
-        },
-        tabBarActiveTintColor: Colors.tabActive,
-        tabBarInactiveTintColor: Colors.tabInactive,
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontFamily: 'Poppins_500Medium',
-          marginTop: 2,
-        },
-        tabBarIcon: ({ focused, color, size }) => {
-          const tab = TAB_CONFIG.find(t => t.name === route.name);
-          const iconName = focused ? (tab?.activeIcon || tab?.icon) : tab?.icon;
-          return (
-            <View style={focused ? styles.activeTabIconBg : styles.tabIconBg}>
-              <MaterialCommunityIcons name={iconName || 'home'} size={focused ? 22 : 20} color={color} />
-              {tab?.badge && !focused && (
-                <View style={styles.tabBadge}>
-                  <View style={styles.tabBadgeDot} />
-                </View>
-              )}
-            </View>
-          );
-        },
-      })}
-    >
-      {TAB_CONFIG.map(tab => (
-        <Tab.Screen key={tab.name} name={tab.name} component={tab.component} options={{ tabBarLabel: tab.label }} />
-      ))}
-    </Tab.Navigator>
-  );
-};
-
 const styles = StyleSheet.create({
+  tabBar: {
+    backgroundColor: Colors.tabBackground,
+    borderTopWidth: 0,
+    height: 70,
+    paddingBottom: 10,
+    paddingTop: 6,
+    ...Shadows.lg,
+  },
   activeTabIconBg: {
     width: 44,
     height: 28,
@@ -109,20 +90,6 @@ const styles = StyleSheet.create({
     height: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    position: 'relative',
-  },
-  tabBadge: {
-    position: 'absolute',
-    top: 2,
-    right: 8,
-  },
-  tabBadgeDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: Colors.danger,
-    borderWidth: 1.5,
-    borderColor: '#fff',
   },
 });
 

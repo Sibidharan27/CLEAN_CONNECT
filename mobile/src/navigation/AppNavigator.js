@@ -12,7 +12,7 @@ const Stack = createNativeStackNavigator();
 const AppNavigator = () => {
   const { user, role, isLoading } = useAuth();
 
-  if (isLoading) return <LoadingScreen message="Signing you in..." />;
+  if (isLoading) return <LoadingScreen message="Initializing CleanConnect+..." />;
 
   return (
     <NavigationContainer>

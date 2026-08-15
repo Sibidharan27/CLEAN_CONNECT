@@ -18,11 +18,11 @@ export async function getDriverRoutes(req, res, next) {
         vehicleId: 'GCT-001',
         date: today,
         stops: [
-          { stopNumber: 1, address: '12, Rose Garden Street, Zone A', area: 'Central District', landmark: 'Near Central Park', latitude: 13.0827, longitude: 80.2707, status: 'completed' },
-          { stopNumber: 2, address: '45, MG Road, Zone A', area: 'Central District', landmark: 'Opposite City Mall', latitude: 13.085, longitude: 80.272, status: 'pending' },
-          { stopNumber: 3, address: '78, Anna Nagar 2nd Street, Zone A', area: 'North District', landmark: 'Near Anna Nagar Tower', latitude: 13.09, longitude: 80.275, status: 'pending' },
-          { stopNumber: 4, address: '23, Velachery Main Road, Zone B', area: 'South District', landmark: 'Beside Reliance Fresh', latitude: 13.07, longitude: 80.265, status: 'pending' },
-          { stopNumber: 5, address: '56, T Nagar, Zone B', area: 'West District', landmark: 'Pondy Bazaar Junction', latitude: 13.04, longitude: 80.23, status: 'pending' },
+          { stopNumber: 1, address: '12, RS Puram, 1st Street', area: 'RS Puram', landmark: 'Near RS Puram Market', latitude: 11.0105, longitude: 76.9638, status: 'completed' },
+          { stopNumber: 2, address: '45, Gandhipuram Main Road', area: 'Gandhipuram', landmark: 'Opposite Central Bus Stand', latitude: 11.0179, longitude: 76.9674, status: 'pending' },
+          { stopNumber: 3, address: '78, Peelamedu, Avinashi Road', area: 'Peelamedu', landmark: 'Near Kovai Airport Junction', latitude: 11.0283, longitude: 77.0237, status: 'pending' },
+          { stopNumber: 4, address: '23, Saibaba Colony, 3rd Street', area: 'Saibaba Colony', landmark: 'Beside Saibaba Temple', latitude: 11.0218, longitude: 76.9551, status: 'pending' },
+          { stopNumber: 5, address: '56, Race Course Road', area: 'Race Course', landmark: 'Near Race Course Roundabout', latitude: 11.0138, longitude: 76.9734, status: 'pending' },
         ],
       });
     }

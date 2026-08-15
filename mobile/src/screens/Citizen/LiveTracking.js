@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, Platform,
+  ActivityIndicator,
 } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,14 +16,14 @@ import { sendTruckNearbyAlert } from '../../services/notificationService';
 const { height } = Dimensions.get('window');
 const VEHICLE_ID = 'GCT-001';
 
-// Default to Chennai center if no location
-const CHENNAI_DEFAULT = { latitude: 13.0827, longitude: 80.2707 };
+// Default to Coimbatore center
+const COIMBATORE_DEFAULT = { latitude: 11.0168, longitude: 76.9558 };
 
 const LiveTracking = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const mapRef = useRef(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const { location: myLocation } = useLocation();
+  const { location: myLocation, getCurrentLocation, isLocating } = useLocation();
 
   const [isTracking, setIsTracking] = useState(true);
   const [truckData, setTruckData] = useState(null);
@@ -30,10 +31,18 @@ const LiveTracking = ({ navigation }) => {
   const [distance, setDistance] = useState(null);
   const [eta, setEta] = useState('—');
   const [mapReady, setMapReady] = useState(false);
+  const [locationError, setLocationError] = useState(null);
   const unsubRef = useRef(null);
 
+  // Request location on mount if not yet available
   useEffect(() => {
-    // Load initial position from REST fallback
+    if (!myLocation) {
+      getCurrentLocation().catch((e) => {
+        setLocationError('Could not get your location. Showing default area.');
+      });
+    }
+
+    // Load initial truck position from REST fallback
     getVehicleLocation(VEHICLE_ID)
       .then(data => { if (data) handleTruckUpdate(data); })
       .catch(() => {});
@@ -56,7 +65,7 @@ const LiveTracking = ({ navigation }) => {
     setTruckData(data);
     setLastUpdated(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
 
-    if (myLocation && data.latitude && data.longitude) {
+    if (myLocation && data?.latitude && data?.longitude) {
       const dist = calculateDistance(
         myLocation.latitude, myLocation.longitude,
         data.latitude, data.longitude
@@ -68,7 +77,7 @@ const LiveTracking = ({ navigation }) => {
     }
 
     // Animate map to fit both markers
-    if (mapRef.current && myLocation && data.latitude) {
+    if (mapRef.current && myLocation && data?.latitude) {
       try {
         mapRef.current.fitToCoordinates(
           [
@@ -93,7 +102,7 @@ const LiveTracking = ({ navigation }) => {
 
   const userCoords = myLocation
     ? { latitude: myLocation.latitude, longitude: myLocation.longitude }
-    : CHENNAI_DEFAULT;
+    : COIMBATORE_DEFAULT;
 
   const truckCoords = truckData?.latitude
     ? { latitude: truckData.latitude, longitude: truckData.longitude }
@@ -102,13 +111,13 @@ const LiveTracking = ({ navigation }) => {
   const initialRegion = {
     latitude: userCoords.latitude,
     longitude: userCoords.longitude,
-    latitudeDelta: 0.03,
-    longitudeDelta: 0.03,
+    latitudeDelta: 0.05,
+    longitudeDelta: 0.05,
   };
 
   const truck = truckData ? {
     id: VEHICLE_ID,
-    plateNumber: 'TN-01-AB-1234',
+    plateNumber: 'TN-38-AB-1234',
     driver: truckData.driverName || 'On Route',
     driverPhone: '+91 98765 43210',
     vehicleType: 'Compactor Truck',
@@ -129,7 +138,7 @@ const LiveTracking = ({ navigation }) => {
           style={styles.map}
           provider={PROVIDER_GOOGLE}
           initialRegion={initialRegion}
-          showsUserLocation={true}
+          showsUserLocation={!!myLocation}
           showsMyLocationButton={false}
           showsCompass={false}
           onMapReady={() => setMapReady(true)}
@@ -149,23 +158,13 @@ const LiveTracking = ({ navigation }) => {
             </Marker>
           )}
 
-          {/* ── Live Truck marker ── */}
+          {/* ── Live Truck marker (pulse ring as separate marker) ── */}
           {truckCoords && (
             <Marker
               coordinate={truckCoords}
               anchor={{ x: 0.5, y: 0.5 }}
               title={`Truck ${VEHICLE_ID}`}
               description={`Last updated: ${lastUpdated}`}
-            >
-              <Animated.View style={[styles.truckMarkerWrapper, { transform: [{ scale: pulseAnim }] }]}>
-                <View style={styles.truckPulseRing} />
-              </Animated.View>
-            </Marker>
-          )}
-          {truckCoords && (
-            <Marker
-              coordinate={truckCoords}
-              anchor={{ x: 0.5, y: 0.5 }}
             >
               <View style={styles.truckMarker}>
                 <MaterialCommunityIcons name="truck-fast" size={16} color="#fff" />
@@ -184,11 +183,27 @@ const LiveTracking = ({ navigation }) => {
           )}
         </MapView>
 
+        {/* ── Locating spinner overlay ── */}
+        {isLocating && (
+          <View style={styles.locatingOverlay}>
+            <ActivityIndicator size="small" color={Colors.primary} />
+            <Text style={styles.locatingText}>Getting your location...</Text>
+          </View>
+        )}
+
         {/* ── Connecting overlay if no truck data ── */}
-        {!truckData && (
+        {!truckData && !isLocating && (
           <View style={styles.connectingBanner}>
             <MaterialCommunityIcons name="wifi-strength-1" size={16} color={Colors.textTertiary} />
             <Text style={styles.connectingText}>Connecting to truck GPS...</Text>
+          </View>
+        )}
+
+        {/* ── Location error banner ── */}
+        {locationError && (
+          <View style={[styles.connectingBanner, { backgroundColor: Colors.warningSurface }]}>
+            <MaterialCommunityIcons name="map-marker-off-outline" size={16} color={Colors.warning} />
+            <Text style={[styles.connectingText, { color: Colors.warning }]}>{locationError}</Text>
           </View>
         )}
 
@@ -200,17 +215,17 @@ const LiveTracking = ({ navigation }) => {
           <View style={styles.mapTitle}>
             <Text style={styles.mapTitleText}>Live Tracking</Text>
             <View style={styles.liveChip}>
-              <Animated.View style={[styles.liveDot, truckData && styles.liveDotActive]} />
+              <View style={[styles.liveDot, truckData && styles.liveDotActive]} />
               <Text style={styles.liveText}>{truckData ? 'LIVE' : 'CONNECTING'}</Text>
             </View>
           </View>
           <TouchableOpacity
             style={styles.layersBtn}
             onPress={() => {
-              if (mapRef.current && myLocation) {
+              if (mapRef.current) {
                 mapRef.current.animateToRegion({
-                  latitude: myLocation.latitude,
-                  longitude: myLocation.longitude,
+                  latitude: userCoords.latitude,
+                  longitude: userCoords.longitude,
                   latitudeDelta: 0.02,
                   longitudeDelta: 0.02,
                 });
@@ -285,7 +300,7 @@ const styles = StyleSheet.create({
   mapContainer: { flex: 1, position: 'relative', minHeight: height * 0.45 },
   map: { flex: 1 },
 
-  // Markers
+  // Markers — NO Animated.View inside Marker (unsupported in react-native-maps)
   citizenMarker: {
     width: 34, height: 34, borderRadius: 17,
     backgroundColor: Colors.primary,
@@ -295,18 +310,22 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   truckMarker: {
-    width: 34, height: 34, borderRadius: 17,
+    width: 40, height: 40, borderRadius: 20,
     backgroundColor: Colors.accent,
     justifyContent: 'center', alignItems: 'center',
     borderWidth: 3, borderColor: '#fff',
     shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
     elevation: 5,
   },
-  truckMarkerWrapper: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
-  truckPulseRing: {
-    position: 'absolute', width: 60, height: 60, borderRadius: 30,
-    backgroundColor: Colors.accent + '40',
+
+  // Locating overlay
+  locatingOverlay: {
+    position: 'absolute', bottom: 16, left: 16, right: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: BorderRadius.md, padding: Spacing.sm,
+    ...Shadows.sm,
   },
+  locatingText: { ...textStyles.caption, color: Colors.primary },
 
   // Connecting overlay
   connectingBanner: {

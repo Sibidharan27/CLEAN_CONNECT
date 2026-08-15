@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Dimensions, Animated, Alert,
+  View, Text, StyleSheet, TouchableOpacity, Dimensions, Alert, ActivityIndicator,
 } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,13 +12,13 @@ import { useLocation } from '../../context/LocationContext';
 
 const { width, height } = Dimensions.get('window');
 
-// Default Chennai center
-const CHENNAI = { latitude: 13.0827, longitude: 80.2707 };
+// Default Coimbatore center
+const COIMBATORE = { latitude: 11.0168, longitude: 76.9558 };
 
 const LiveNavigation = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const mapRef = useRef(null);
-  const { location: myLocation } = useLocation();
+  const { location: myLocation, getCurrentLocation } = useLocation();
 
   const [routeData, setRouteData] = useState(null);
   const [stops, setStops] = useState([]);
@@ -43,7 +43,13 @@ const LiveNavigation = ({ navigation }) => {
     }
   }, []);
 
-  useEffect(() => { loadRoutes(); }, []);
+  useEffect(() => {
+    loadRoutes();
+    // Request location if not yet available
+    if (!myLocation) {
+      getCurrentLocation().catch(() => {});
+    }
+  }, []);
 
   // Fit map to show all pending stops + current location
   useEffect(() => {
@@ -53,12 +59,15 @@ const LiveNavigation = ({ navigation }) => {
       .map(s => ({ latitude: s.latitude, longitude: s.longitude }));
     if (myLocation) coords.push({ latitude: myLocation.latitude, longitude: myLocation.longitude });
     if (coords.length > 0) {
-      try {
-        mapRef.current.fitToCoordinates(coords, {
-          edgePadding: { top: 80, right: 40, bottom: 300, left: 40 },
-          animated: true,
-        });
-      } catch {}
+      // Small delay so map is fully rendered before animating
+      setTimeout(() => {
+        try {
+          mapRef.current?.fitToCoordinates(coords, {
+            edgePadding: { top: 80, right: 40, bottom: 300, left: 40 },
+            animated: true,
+          });
+        } catch {}
+      }, 500);
     }
   }, [stops, myLocation]);
 
@@ -79,21 +88,26 @@ const LiveNavigation = ({ navigation }) => {
           setCompleting(true);
           try {
             const updated = await completeStop(routeData._id, currentStop._id);
-            const updatedStops = updated.stops || [];
+            // Safely access stops array
+            const updatedStops = Array.isArray(updated?.stops) ? updated.stops : stops.map((s, i) =>
+              s._id === currentStop._id ? { ...s, status: 'completed', completedAt: new Date().toISOString() } : s
+            );
             setStops(updatedStops);
-            setRouteData(updated);
+            if (updated?.stops) setRouteData(updated);
+
             // Move to next pending stop
             const nextPending = updatedStops.findIndex(
               (s, i) => i > currentStopIndex && s.status !== 'completed'
             );
-            if (nextPending >= 0) setCurrentStopIndex(nextPending);
-            else {
+            if (nextPending >= 0) {
+              setCurrentStopIndex(nextPending);
+            } else {
               Alert.alert('Route Complete! 🎉', 'All stops for today have been completed.', [
                 { text: 'Go Back', onPress: () => navigation.goBack() }
               ]);
             }
           } catch (e) {
-            Alert.alert('Error', e.message || 'Could not complete stop');
+            Alert.alert('Error', e.message || 'Could not complete stop. Please try again.');
           } finally {
             setCompleting(false);
           }
@@ -112,13 +126,13 @@ const LiveNavigation = ({ navigation }) => {
 
   const myCoords = myLocation
     ? { latitude: myLocation.latitude, longitude: myLocation.longitude }
-    : CHENNAI;
+    : COIMBATORE;
 
   const initialRegion = {
     latitude: myCoords.latitude,
     longitude: myCoords.longitude,
-    latitudeDelta: 0.04,
-    longitudeDelta: 0.04,
+    latitudeDelta: 0.05,
+    longitudeDelta: 0.05,
   };
 
   const routeCoords = stops
@@ -134,22 +148,22 @@ const LiveNavigation = ({ navigation }) => {
           style={styles.map}
           provider={PROVIDER_GOOGLE}
           initialRegion={initialRegion}
-          showsUserLocation={true}
+          showsUserLocation={!!myLocation}
           showsMyLocationButton={false}
           showsCompass={false}
           customMapStyle={mapStyle}
         >
           {/* ── Route polyline through all stops ── */}
-          {myLocation && routeCoords.length > 0 && (
+          {routeCoords.length > 0 && (
             <Polyline
-              coordinates={[myCoords, ...routeCoords]}
+              coordinates={myLocation ? [myCoords, ...routeCoords] : routeCoords}
               strokeColor={Colors.primary}
               strokeWidth={3}
               lineDashPattern={[10, 4]}
             />
           )}
 
-          {/* ── All stop markers ── */}
+          {/* ── All stop markers — plain Views only (no Animated.View inside Marker) ── */}
           {stops.map((stop, i) => {
             if (!stop.latitude || !stop.longitude) return null;
             const isCompleted = stop.status === 'completed';
@@ -290,11 +304,11 @@ const LiveNavigation = ({ navigation }) => {
               disabled={completing}
             >
               <LinearGradient colors={['#0D47A1', '#1565C0']} style={styles.arrivedBtnGradient}>
-                <MaterialCommunityIcons
-                  name={completing ? 'loading' : 'check-circle-outline'}
-                  size={20}
-                  color="#fff"
-                />
+                {completing ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <MaterialCommunityIcons name="check-circle-outline" size={20} color="#fff" />
+                )}
                 <Text style={styles.arrivedBtnText}>
                   {completing ? 'Saving...' : 'Mark Arrived'}
                 </Text>
@@ -337,7 +351,7 @@ const styles = StyleSheet.create({
   mapArea: { flex: 1, position: 'relative' },
   map: { flex: 1 },
 
-  // Markers
+  // Markers — plain Views only (Animated.View inside Marker crashes react-native-maps)
   stopMarker: {
     width: 28, height: 28, borderRadius: 14,
     backgroundColor: Colors.textTertiary,

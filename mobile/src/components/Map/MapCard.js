@@ -4,8 +4,8 @@ import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors, textStyles, BorderRadius, Spacing, Shadows } from '../../theme';
 
-// Default center — Chennai
-const CHENNAI = { latitude: 13.0827, longitude: 80.2707 };
+// Default center — Coimbatore
+const COIMBATORE = { latitude: 11.0168, longitude: 76.9558 };
 
 const MapCard = ({
   title,
@@ -16,7 +16,7 @@ const MapCard = ({
   stops = [],       // array of { latitude, longitude, stopNumber, status }
   centerCoord = null, // { latitude, longitude } — center the map here
 }) => {
-  const center = centerCoord || CHENNAI;
+  const center = centerCoord || COIMBATORE;
 
   const initialRegion = {
     latitude: center.latitude,

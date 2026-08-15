@@ -30,7 +30,7 @@ const StatCard = ({ icon, value, label, color, bg }) => {
 
 const DriverDashboard = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { startWatching, stopWatching } = useLocation();
 
   const [routeData, setRouteData] = useState(null);
@@ -75,7 +75,6 @@ const DriverDashboard = ({ navigation }) => {
     try {
       await startRoute(routeData._id);
       setIsRouteActive(true);
-      // Start GPS broadcasting
       startWatching(async (loc) => {
         broadcastDriverLocation('GCT-001', { latitude: loc.latitude, longitude: loc.longitude, heading: loc.heading, speed: loc.speed });
         try { await postDriverLocation(loc.latitude, loc.longitude, 'GCT-001', loc.heading, loc.speed); } catch {}
@@ -96,6 +95,17 @@ const DriverDashboard = ({ navigation }) => {
     ]);
   };
 
+  const handleLogout = () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign Out', style: 'destructive', onPress: logout },
+      ]
+    );
+  };
+
   const onRefresh = () => { setRefreshing(true); loadData(); };
 
   return (
@@ -109,7 +119,7 @@ const DriverDashboard = ({ navigation }) => {
         <LinearGradient colors={['#0D47A1', '#1565C0', '#1976D2']} style={styles.header}>
           <View style={styles.headerCircle} />
           <View style={styles.headerTop}>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.greeting}>
                 {new Date().getHours() < 12 ? 'Good Morning 🌤️' : 'Good Afternoon ☀️'}
               </Text>
@@ -119,9 +129,21 @@ const DriverDashboard = ({ navigation }) => {
                 <Text style={styles.empIdText}>{user?.employeeId || user?.email?.split('@')[0] || 'Driver'}</Text>
               </View>
             </View>
-            <TouchableOpacity style={styles.notifBtn} onPress={() => {}}>
-              <MaterialCommunityIcons name="bell-outline" size={22} color="#fff" />
-            </TouchableOpacity>
+            {/* Header action buttons */}
+            <View style={styles.headerActions}>
+              <TouchableOpacity
+                style={styles.headerIconBtn}
+                onPress={() => navigation.navigate('DriverProfile')}
+              >
+                <MaterialCommunityIcons name="account-circle-outline" size={22} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.headerIconBtn, { marginLeft: 8 }]}
+                onPress={handleLogout}
+              >
+                <MaterialCommunityIcons name="logout" size={20} color="rgba(255,80,80,0.9)" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Status Card */}
@@ -193,6 +215,40 @@ const DriverDashboard = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
+          {/* Quick Nav Cards */}
+          <View style={styles.quickNavRow}>
+            <TouchableOpacity
+              style={[styles.quickNavCard, Shadows.sm]}
+              onPress={() => navigation.navigate('LiveNavigation')}
+            >
+              <View style={[styles.quickNavIcon, { backgroundColor: '#E3F2FD' }]}>
+                <MaterialCommunityIcons name="navigation-variant" size={22} color="#1565C0" />
+              </View>
+              <Text style={styles.quickNavTitle}>Live Navigation</Text>
+              <Text style={styles.quickNavSub}>Navigate stops</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.quickNavCard, Shadows.sm]}
+              onPress={() => navigation.navigate('CompletedCollections')}
+            >
+              <View style={[styles.quickNavIcon, { backgroundColor: Colors.successSurface }]}>
+                <MaterialCommunityIcons name="clipboard-check-multiple-outline" size={22} color={Colors.success} />
+              </View>
+              <Text style={styles.quickNavTitle}>Completed</Text>
+              <Text style={styles.quickNavSub}>View history</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.quickNavCard, Shadows.sm]}
+              onPress={() => navigation.navigate('DriverProfile')}
+            >
+              <View style={[styles.quickNavIcon, { backgroundColor: Colors.warningSurface }]}>
+                <MaterialCommunityIcons name="account-outline" size={22} color={Colors.warning} />
+              </View>
+              <Text style={styles.quickNavTitle}>My Profile</Text>
+              <Text style={styles.quickNavSub}>View info</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* Summary */}
           <View style={[styles.workSummary, Shadows.sm]}>
             <Text style={styles.sectionTitle}>Today's Summary</Text>
@@ -225,7 +281,8 @@ const styles = StyleSheet.create({
   driverName: { ...textStyles.h4, color: '#fff', marginVertical: 2 },
   empIdChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: BorderRadius.full, paddingHorizontal: 10, paddingVertical: 3, alignSelf: 'flex-start' },
   empIdText: { ...textStyles.caption, color: 'rgba(255,255,255,0.9)' },
-  notifBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
+  headerActions: { flexDirection: 'row', alignItems: 'center' },
+  headerIconBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
   statusCard: { backgroundColor: '#fff', borderRadius: BorderRadius.lg, padding: Spacing.base },
   statusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md },
   statusLeft: { flexDirection: 'row', alignItems: 'center' },
@@ -249,7 +306,7 @@ const styles = StyleSheet.create({
   gpsBroadcastCard: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Colors.successSurface, borderRadius: BorderRadius.md, padding: Spacing.sm, marginBottom: Spacing.base, borderWidth: 1, borderColor: Colors.success + '40' },
   gpsLiveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.success },
   gpsBroadcastText: { ...textStyles.label, color: Colors.success, flex: 1 },
-  actionRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.xl },
+  actionRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.base },
   startBtn: { flex: 1, borderRadius: BorderRadius.lg, overflow: 'hidden' },
   startBtnGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: Spacing.md },
   startBtnText: { ...textStyles.button, color: '#fff' },
@@ -257,8 +314,13 @@ const styles = StyleSheet.create({
   stopBtnText: { ...textStyles.button, color: Colors.danger },
   routeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: Colors.infoSurface, borderRadius: BorderRadius.lg, padding: Spacing.md, paddingHorizontal: Spacing.lg, borderWidth: 1.5, borderColor: Colors.info + '30' },
   routeBtnText: { ...textStyles.label, color: Colors.info },
+  quickNavRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.base },
+  quickNavCard: { flex: 1, backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.md, alignItems: 'center' },
+  quickNavIcon: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  quickNavTitle: { ...textStyles.labelSmall, color: Colors.textPrimary, textAlign: 'center', fontFamily: 'Poppins_600SemiBold' },
+  quickNavSub: { ...textStyles.caption, color: Colors.textTertiary, textAlign: 'center', marginTop: 2 },
   sectionTitle: { ...textStyles.h6, color: Colors.textPrimary, marginBottom: Spacing.md },
-  workSummary: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.base, marginTop: Spacing.sm },
+  workSummary: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.base },
   summaryRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing.sm, borderTopWidth: 1, borderTopColor: Colors.divider, marginTop: Spacing.sm },
   summaryIconBg: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   summaryLabel: { ...textStyles.body, color: Colors.textSecondary, flex: 1 },

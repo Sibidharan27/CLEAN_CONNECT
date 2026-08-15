@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { requestNotificationPermissions, getUnreadCount } from '../services/notificationService';
+import { requestNotificationPermissions, getUnreadCount, setupAndroidChannel } from '../services/notificationService';
 import { useAuth } from './AuthContext';
 
 const NotificationContext = createContext(null);
@@ -8,6 +8,11 @@ export const NotificationProvider = ({ children }) => {
   const { user } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
   const pollRef = useRef(null);
+
+  useEffect(() => {
+    // Always set up Android channels at startup (safe to call multiple times)
+    setupAndroidChannel();
+  }, []);
 
   useEffect(() => {
     if (user) {

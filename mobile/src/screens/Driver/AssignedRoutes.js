@@ -55,7 +55,10 @@ const AssignedRoutes = ({ navigation }) => {
   const onRefresh = () => { setRefreshing(true); loadRoutes(); };
 
   const handleCompleteStop = async (stop) => {
-    if (!routeData?._id || !stop._id) return;
+    if (!routeData?._id || !stop._id) {
+      Alert.alert('Error', 'Could not identify this stop. Please refresh.');
+      return;
+    }
     Alert.alert('Complete Stop?', `Mark "${stop.address}" as done?`, [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -63,10 +66,18 @@ const AssignedRoutes = ({ navigation }) => {
           setCompleting(stop._id);
           try {
             const updated = await completeStop(routeData._id, stop._id);
-            setStops(updated.stops || []);
-            setRouteData(updated);
+            // Safely update stops — handle both full route response and partial
+            if (updated?.stops && Array.isArray(updated.stops)) {
+              setStops(updated.stops);
+              setRouteData(updated);
+            } else {
+              // Optimistic local update if API response is unexpected
+              setStops(prev => prev.map(s =>
+                s._id === stop._id ? { ...s, status: 'completed', completedAt: new Date().toISOString() } : s
+              ));
+            }
           } catch (e) {
-            Alert.alert('Error', e.message);
+            Alert.alert('Error', e.message || 'Could not mark stop as done. Please try again.');
           } finally {
             setCompleting(null);
           }

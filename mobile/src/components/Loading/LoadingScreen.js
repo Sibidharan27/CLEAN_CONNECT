@@ -1,37 +1,23 @@
 import React, { useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Colors, textStyles } from '../../theme';
+import { Colors } from '../../theme';
 
 const LoadingScreen = ({ message = 'Loading...' }) => {
-  const rotateAnim = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const pulseAnim = useRef(null);
 
-  useEffect(() => {
-    Animated.loop(
-      Animated.timing(rotateAnim, { toValue: 1, duration: 1200, useNativeDriver: true })
-    ).start();
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.15, duration: 700, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
-      ])
-    ).start();
-  }, []);
-
-  const rotate = rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
-
+  // No heavy animations — faster perceived load
   return (
-    <LinearGradient colors={['#F5F7FA', '#E8F5E9']} style={styles.container}>
-      <Animated.View style={[styles.iconContainer, { transform: [{ scale: pulseAnim }] }]}>
-        <LinearGradient colors={Colors.gradientPrimary} style={styles.iconBg}>
-          <MaterialCommunityIcons name="recycle" size={40} color="#fff" />
-        </LinearGradient>
-      </Animated.View>
-      <Animated.View style={[styles.spinner, { transform: [{ rotate }] }]}>
-        <View style={styles.spinnerInner} />
-      </Animated.View>
+    <LinearGradient colors={['#1B5E20', '#2E7D32', '#388E3C']} style={styles.container}>
+      <View style={styles.logoCircle}>
+        <MaterialCommunityIcons name="recycle" size={48} color="#fff" />
+      </View>
+      <Text style={styles.appName}>CleanConnect+</Text>
+      <Text style={styles.tagline}>Smart Waste Management</Text>
+      <View style={styles.loaderBar}>
+        <View style={styles.loaderFill} />
+      </View>
       <Text style={styles.message}>{message}</Text>
     </LinearGradient>
   );
@@ -42,38 +28,49 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 40,
   },
-  iconContainer: { marginBottom: 24 },
-  iconBg: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
+  logoCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  spinner: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    borderWidth: 3,
-    borderColor: Colors.primaryLight,
-    borderTopColor: Colors.primary,
     marginBottom: 20,
-  },
-  spinnerInner: {
-    position: 'absolute',
-    top: 4,
-    left: 4,
-    right: 4,
-    bottom: 4,
-    borderRadius: 24,
     borderWidth: 2,
-    borderColor: 'transparent',
-    borderTopColor: Colors.accent,
+    borderColor: 'rgba(255,255,255,0.4)',
+  },
+  appName: {
+    fontSize: 28,
+    fontFamily: 'Poppins_700Bold',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  tagline: {
+    fontSize: 13,
+    fontFamily: 'Poppins_400Regular',
+    color: 'rgba(255,255,255,0.8)',
+    marginBottom: 32,
+  },
+  loaderBar: {
+    width: '60%',
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  loaderFill: {
+    width: '70%',
+    height: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 2,
   },
   message: {
-    ...textStyles.body,
-    color: Colors.textSecondary,
+    fontSize: 13,
+    fontFamily: 'Poppins_400Regular',
+    color: 'rgba(255,255,255,0.7)',
   },
 });
 

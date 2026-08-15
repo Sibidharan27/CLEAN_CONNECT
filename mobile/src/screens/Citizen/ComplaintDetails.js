@@ -10,24 +10,44 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors, textStyles, BorderRadius, Spacing, Shadows } from '../../theme';
 import Header from '../../components/Header/Header';
-import StatusBadge from '../../components/Card/StatusBadge';
 import MapCard from '../../components/Map/MapCard';
 
 const TimelineStep = ({ step, isLast }) => {
-  const isCompleted = true;
   const iconMap = {
+    'open': 'clipboard-check-outline',
     'Submitted': 'clipboard-check-outline',
+    'reviewing': 'eye-outline',
     'Reviewing': 'eye-outline',
+    'in_progress': 'truck-fast',
     'In Progress': 'truck-fast',
+    'assigned': 'account-check-outline',
+    'resolved': 'check-circle-outline',
     'Completed': 'check-circle-outline',
+    'closed': 'archive-outline',
   };
   const colorMap = {
+    'open': Colors.info,
     'Submitted': Colors.info,
+    'reviewing': Colors.warning,
     'Reviewing': Colors.warning,
+    'in_progress': Colors.primary,
     'In Progress': Colors.primary,
+    'assigned': Colors.primary,
+    'resolved': Colors.success,
     'Completed': Colors.success,
+    'closed': Colors.textSecondary,
   };
   const color = colorMap[step.status] || Colors.primary;
+
+  // Format time — handle Date objects and ISO strings
+  const formatTime = (t) => {
+    if (!t) return '';
+    try {
+      const d = new Date(t);
+      if (!isNaN(d)) return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    } catch {}
+    return String(t);
+  };
 
   return (
     <View style={styles.timelineStep}>
@@ -40,35 +60,79 @@ const TimelineStep = ({ step, isLast }) => {
       <View style={styles.timelineContent}>
         <Text style={[styles.timelineStatus, { color }]}>{step.status}</Text>
         <Text style={styles.timelineNote}>{step.note}</Text>
-        <Text style={styles.timelineTime}>{step.time}</Text>
+        <Text style={styles.timelineTime}>{formatTime(step.time)}</Text>
       </View>
     </View>
   );
 };
 
+// Safely derive display fields from either API format or legacy mock format
+const normaliseComplaint = (c) => ({
+  id: c._id || c.id || '—',
+  title: c.title || 'Complaint',
+  category: c.category || '—',
+  categoryIcon: c.categoryIcon || 'alert-circle-outline',
+  status: (() => {
+    const s = c.status || 'open';
+    if (s === 'in_progress') return 'In Progress';
+    if (s === 'open') return 'Pending';
+    if (s === 'resolved') return 'Completed';
+    return s;
+  })(),
+  rawStatus: c.status,
+  description: c.description || 'No description provided.',
+  location: c.location?.address || c.location || 'Location not specified',
+  date: c.date || (c.createdAt ? c.createdAt.split('T')[0] : '—'),
+  time: c.time || (c.createdAt ? new Date(c.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'),
+  assignedDriver: c.assignedDriver?.name || c.assignedDriver || null,
+  assignedVehicle: c.assignedVehicle || null,
+  resolutionNotes: c.resolutionNotes || c.resolutionNote || null,
+  timeline: c.timeline || [{ status: c.status || 'open', time: c.createdAt, note: 'Complaint registered.' }],
+  latitude: c.location?.latitude || c.latitude || 11.0168,
+  longitude: c.location?.longitude || c.longitude || 76.9558,
+  area: c.area || c.location?.address?.split(',').pop()?.trim() || 'Coimbatore',
+});
+
 const ComplaintDetails = ({ navigation, route }) => {
-  const { complaint } = route.params;
+  const raw = route.params?.complaint;
+
+  if (!raw) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <MaterialCommunityIcons name="alert-circle-outline" size={48} color={Colors.danger} />
+        <Text style={[textStyles.h6, { color: Colors.textPrimary, marginTop: 12 }]}>Complaint not found</Text>
+        <TouchableOpacity style={styles.backFallback} onPress={() => navigation.goBack()}>
+          <Text style={{ color: Colors.primary }}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const complaint = normaliseComplaint(raw);
+
+  const statusGradient =
+    complaint.rawStatus === 'resolved' ? Colors.gradientPrimary
+    : complaint.rawStatus === 'in_progress' ? ['#1565C0', '#1976D2']
+    : [Colors.warning, Colors.accentDark];
+
+  const statusIcon =
+    complaint.rawStatus === 'resolved' ? 'check-circle'
+    : complaint.rawStatus === 'in_progress' ? 'truck-fast'
+    : 'clock-outline';
 
   return (
     <View style={styles.container}>
       <Header
         title="Complaint Details"
-        subtitle={complaint.id}
+        subtitle={`#${complaint.id}`}
         showBack
         onBack={() => navigation.goBack()}
       />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Status Banner */}
-        <LinearGradient
-          colors={complaint.status === 'Completed' ? Colors.gradientPrimary : complaint.status === 'In Progress' ? ['#1565C0', '#1976D2'] : [Colors.warning, Colors.accentDark]}
-          style={styles.statusBanner}
-        >
+        <LinearGradient colors={statusGradient} style={styles.statusBanner}>
           <View style={styles.bannerLeft}>
-            <MaterialCommunityIcons
-              name={complaint.status === 'Completed' ? 'check-circle' : complaint.status === 'In Progress' ? 'truck-fast' : 'clock-outline'}
-              size={28}
-              color="#fff"
-            />
+            <MaterialCommunityIcons name={statusIcon} size={28} color="#fff" />
             <View style={{ marginLeft: 12 }}>
               <Text style={styles.bannerStatus}>{complaint.status}</Text>
               <Text style={styles.bannerDate}>Submitted: {complaint.date} at {complaint.time}</Text>
@@ -80,7 +144,7 @@ const ComplaintDetails = ({ navigation, route }) => {
         <View style={[styles.card, Shadows.md]}>
           <View style={styles.cardHeader}>
             <View style={[styles.categoryIconBg, { backgroundColor: Colors.primarySurface }]}>
-              <MaterialCommunityIcons name={complaint.categoryIcon || 'alert-circle-outline'} size={22} color={Colors.primary} />
+              <MaterialCommunityIcons name={complaint.categoryIcon} size={22} color={Colors.primary} />
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.cardTitle}>{complaint.title}</Text>
@@ -90,12 +154,12 @@ const ComplaintDetails = ({ navigation, route }) => {
 
           <View style={styles.divider} />
 
-          <Text style={styles.sectionLabel}>Description</Text>
+          <Text style={styles.sectionLabel}>DESCRIPTION</Text>
           <Text style={styles.description}>{complaint.description}</Text>
 
           <View style={styles.divider} />
 
-          <Text style={styles.sectionLabel}>Location</Text>
+          <Text style={styles.sectionLabel}>LOCATION</Text>
           <View style={styles.locationRow}>
             <MaterialCommunityIcons name="map-marker-outline" size={16} color={Colors.primary} />
             <Text style={styles.locationText}>{complaint.location}</Text>
@@ -104,14 +168,16 @@ const ComplaintDetails = ({ navigation, route }) => {
           {complaint.assignedDriver && (
             <>
               <View style={styles.divider} />
-              <Text style={styles.sectionLabel}>Assigned Driver</Text>
+              <Text style={styles.sectionLabel}>ASSIGNED DRIVER</Text>
               <View style={styles.driverCard}>
                 <View style={styles.driverAvatar}>
                   <MaterialCommunityIcons name="account" size={22} color={Colors.primary} />
                 </View>
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text style={styles.driverName}>{complaint.assignedDriver}</Text>
-                  <Text style={styles.driverVehicle}>{complaint.assignedVehicle}</Text>
+                  {complaint.assignedVehicle && (
+                    <Text style={styles.driverVehicle}>{complaint.assignedVehicle}</Text>
+                  )}
                 </View>
                 <TouchableOpacity style={styles.callBtn}>
                   <MaterialCommunityIcons name="phone" size={18} color={Colors.primary} />
@@ -123,7 +189,7 @@ const ComplaintDetails = ({ navigation, route }) => {
           {complaint.resolutionNotes && (
             <>
               <View style={styles.divider} />
-              <Text style={styles.sectionLabel}>Resolution Notes</Text>
+              <Text style={styles.sectionLabel}>RESOLUTION NOTES</Text>
               <View style={styles.notesBox}>
                 <MaterialCommunityIcons name="note-text-outline" size={16} color={Colors.textSecondary} />
                 <Text style={styles.notesText}>{complaint.resolutionNotes}</Text>
@@ -134,14 +200,23 @@ const ComplaintDetails = ({ navigation, route }) => {
 
         {/* Map Preview */}
         <Text style={styles.sectionTitle}>Location on Map</Text>
-        <MapCard title={complaint.area} subtitle="Tap to expand map" height={160} />
+        <MapCard
+          title={complaint.area}
+          subtitle="Complaint location"
+          height={160}
+          centerCoord={{ latitude: complaint.latitude, longitude: complaint.longitude }}
+        />
 
         {/* Timeline */}
         <Text style={styles.sectionTitle}>Status Timeline</Text>
         <View style={[styles.card, Shadows.sm]}>
-          {complaint.timeline.map((step, i) => (
-            <TimelineStep key={i} step={step} isLast={i === complaint.timeline.length - 1} />
-          ))}
+          {complaint.timeline.length === 0 ? (
+            <Text style={[textStyles.body, { color: Colors.textSecondary }]}>No timeline available.</Text>
+          ) : (
+            complaint.timeline.map((step, i) => (
+              <TimelineStep key={i} step={step} isLast={i === complaint.timeline.length - 1} />
+            ))
+          )}
         </View>
 
         <View style={{ height: 40 }} />
@@ -153,6 +228,7 @@ const ComplaintDetails = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   scrollContent: { padding: Spacing.base },
+  backFallback: { marginTop: 16, padding: Spacing.md },
   statusBanner: {
     borderRadius: BorderRadius.lg, padding: Spacing.base,
     flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.base,

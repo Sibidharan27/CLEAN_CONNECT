@@ -7,12 +7,16 @@ async function seedSchedules() {
 
   const now = new Date();
   await Schedule.insertMany([
-    { area: 'Zone A - Central District', zone: 'Zone A', type: 'General Waste', dayOfWeek: [1, 4], timeSlot: '7:00 AM - 10:00 AM', vehicleId: 'GCT-001', color: '#2E7D32', icon: 'trash-can' },
-    { area: 'Zone A - Central District', zone: 'Zone A', type: 'Recyclables', dayOfWeek: [3], timeSlot: '8:00 AM - 11:00 AM', vehicleId: 'GCT-002', color: '#1565C0', icon: 'recycle' },
-    { area: 'Zone A - Central District', zone: 'Zone A', type: 'Organic Waste', dayOfWeek: [6], timeSlot: '9:00 AM - 12:00 PM', vehicleId: 'GCT-003', color: '#4CAF50', icon: 'leaf' },
-    { area: 'Zone B - Lake District', zone: 'Zone B', type: 'General Waste', dayOfWeek: [2, 5], timeSlot: '7:00 AM - 10:00 AM', vehicleId: 'GCT-004', color: '#2E7D32', icon: 'trash-can' },
+    { area: 'RS Puram & Saibaba Colony', zone: 'Zone A', type: 'General Waste', dayOfWeek: [1, 4], timeSlot: '7:00 AM - 10:00 AM', vehicleId: 'GCT-001', color: '#2E7D32', icon: 'trash-can' },
+    { area: 'RS Puram & Saibaba Colony', zone: 'Zone A', type: 'Recyclables', dayOfWeek: [3], timeSlot: '8:00 AM - 11:00 AM', vehicleId: 'GCT-002', color: '#1565C0', icon: 'recycle' },
+    { area: 'RS Puram & Saibaba Colony', zone: 'Zone A', type: 'Organic Waste', dayOfWeek: [6], timeSlot: '9:00 AM - 12:00 PM', vehicleId: 'GCT-003', color: '#4CAF50', icon: 'leaf' },
+    { area: 'Gandhipuram & Race Course', zone: 'Zone B', type: 'General Waste', dayOfWeek: [2, 5], timeSlot: '7:00 AM - 10:00 AM', vehicleId: 'GCT-004', color: '#2E7D32', icon: 'trash-can' },
+    { area: 'Gandhipuram & Race Course', zone: 'Zone B', type: 'Recyclables', dayOfWeek: [1, 4], timeSlot: '8:30 AM - 11:30 AM', vehicleId: 'GCT-005', color: '#1565C0', icon: 'recycle' },
+    { area: 'Peelamedu & Avinashi Road', zone: 'Zone C', type: 'General Waste', dayOfWeek: [2, 6], timeSlot: '6:30 AM - 9:30 AM', vehicleId: 'GCT-006', color: '#2E7D32', icon: 'trash-can' },
+    { area: 'Singanallur & Hopes College', zone: 'Zone D', type: 'General Waste', dayOfWeek: [3, 0], timeSlot: '7:00 AM - 10:00 AM', vehicleId: 'GCT-007', color: '#2E7D32', icon: 'trash-can' },
+    { area: 'Ukkadam & Selvapuram', zone: 'Zone E', type: 'General Waste', dayOfWeek: [2, 5], timeSlot: '6:00 AM - 9:00 AM', vehicleId: 'GCT-008', color: '#2E7D32', icon: 'trash-can' },
   ]);
-  console.log('Schedules seeded');
+  console.log('Schedules seeded with Coimbatore zones');
 }
 
 export async function listSchedules(req, res, next) {

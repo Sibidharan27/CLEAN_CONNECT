@@ -8,6 +8,7 @@ import {
   Switch,
   Alert,
   RefreshControl,
+  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -54,6 +55,40 @@ const DriverProfile = ({ navigation }) => {
     );
   };
 
+  const handleMenuPress = (id) => {
+    switch (id) {
+      case 'history':
+        navigation.navigate('CompletedCollections');
+        break;
+      case 'performance':
+        Alert.alert(
+          'Performance Report',
+          `Today's Stats:\n✅ Completed: ${stats.completed} stops\n📍 Total: ${stats.totalStops} stops\n📊 Completion Rate: ${stats.totalStops > 0 ? Math.round((stats.completed / stats.totalStops) * 100) : 0}%`,
+          [{ text: 'Close' }]
+        );
+        break;
+      case 'help':
+        Alert.alert(
+          'Help & Support',
+          'For driver support, contact:\n\n📞 Dispatch: 1800-123-4568\n📧 driver.support@cleanconnect.gov.in\n\nAvailable 24/7 for route-related issues.',
+          [
+            { text: 'Call Dispatch', onPress: () => Linking.openURL('tel:18001234568') },
+            { text: 'Close', style: 'cancel' },
+          ]
+        );
+        break;
+      case 'privacy':
+        Alert.alert(
+          'Privacy & Security',
+          'Your location data is only shared while your route is active.\n\nYour data is protected under the Municipal Corporation privacy policy.',
+          [{ text: 'Understood' }]
+        );
+        break;
+      default:
+        break;
+    }
+  };
+
   const onRefresh = () => { setRefreshing(true); loadStats(); };
 
   // ── Real user data from auth context ────────────────────────────────────────
@@ -61,16 +96,22 @@ const DriverProfile = ({ navigation }) => {
   const displayEmail = user?.email || '—';
   const displayPhone = user?.phone || 'Not provided';
   const displayEmployeeId = user?.employeeId || user?.email?.split('@')[0]?.toUpperCase() || '—';
-  const displayVehicle = user?.vehicleId || 'Not assigned';
-  const displayZone = user?.zone || 'Not assigned';
-  const displayShift = user?.shift || 'Not set';
+  const displayVehicle = user?.vehicleId || 'GCT-001';
+  const displayZone = user?.zone || 'Coimbatore Zone A';
+  const displayShift = user?.shift || '6:00 AM – 2:00 PM';
   const displayJoining = user?.joiningDate || formatJoinDate(user?.createdAt);
-  // Estimate years of experience from joiningDate or createdAt
   const joinYear = user?.joiningDate
     ? parseInt(user.joiningDate.split(' ').pop()) || new Date().getFullYear()
     : new Date(user?.createdAt || Date.now()).getFullYear();
   const experienceYears = Math.max(0, new Date().getFullYear() - joinYear);
   const experienceStr = experienceYears === 0 ? '< 1 yr' : `${experienceYears} yr${experienceYears > 1 ? 's' : ''}`;
+
+  const QUICK_LINKS = [
+    { id: 'history', icon: 'history', label: 'Collection History', color: Colors.primary },
+    { id: 'performance', icon: 'chart-bar', label: 'Performance Report', color: Colors.info },
+    { id: 'help', icon: 'help-circle-outline', label: 'Help & Support', color: Colors.textSecondary },
+    { id: 'privacy', icon: 'shield-lock-outline', label: 'Privacy & Security', color: Colors.textSecondary },
+  ];
 
   return (
     <ScrollView
@@ -81,6 +122,11 @@ const DriverProfile = ({ navigation }) => {
       {/* ── Header ── */}
       <LinearGradient colors={['#0D47A1', '#1565C0', '#1976D2']} style={styles.headerGradient}>
         <View style={styles.headerCircle} />
+
+        {/* Back button */}
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <MaterialCommunityIcons name="arrow-left" size={22} color="#fff" />
+        </TouchableOpacity>
 
         <View style={styles.avatarContainer}>
           <LinearGradient colors={['#fff', '#E3F2FD']} style={styles.avatar}>
@@ -176,15 +222,14 @@ const DriverProfile = ({ navigation }) => {
 
       {/* ── Quick Links ── */}
       <View style={[styles.section, Shadows.sm]}>
-        {[
-          { icon: 'history', label: 'Collection History', color: Colors.primary },
-          { icon: 'chart-bar', label: 'Performance Report', color: Colors.info },
-          { icon: 'help-circle-outline', label: 'Help & Support', color: Colors.textSecondary },
-          { icon: 'shield-lock-outline', label: 'Privacy & Security', color: Colors.textSecondary },
-        ].map((item, i) => (
-          <View key={item.label}>
+        <View style={styles.sectionTitleRow}>
+          <MaterialCommunityIcons name="view-grid-outline" size={20} color={Colors.textSecondary} />
+          <Text style={styles.sectionTitle}>Quick Links</Text>
+        </View>
+        {QUICK_LINKS.map((item, i) => (
+          <View key={item.id}>
             {i > 0 && <View style={styles.divider} />}
-            <TouchableOpacity style={styles.menuRow} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.menuRow} activeOpacity={0.7} onPress={() => handleMenuPress(item.id)}>
               <View style={[styles.menuIconBg, { backgroundColor: item.color + '15' }]}>
                 <MaterialCommunityIcons name={item.icon} size={18} color={item.color} />
               </View>
@@ -201,7 +246,7 @@ const DriverProfile = ({ navigation }) => {
         <Text style={styles.logoutText}>Sign Out</Text>
       </TouchableOpacity>
 
-      <Text style={styles.version}>CleanConnect+ Driver v1.0.0</Text>
+      <Text style={styles.version}>CleanConnect+ Driver v1.0.0 • Municipal Corporation of Coimbatore</Text>
       <View style={{ height: 100 }} />
     </ScrollView>
   );
@@ -213,6 +258,11 @@ const styles = StyleSheet.create({
   headerCircle: {
     position: 'absolute', width: 200, height: 200, borderRadius: 100,
     backgroundColor: 'rgba(255,255,255,0.05)', top: -40, right: -40,
+  },
+  backBtn: {
+    position: 'absolute', top: 16, left: 16,
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center',
   },
   avatarContainer: { position: 'relative', marginBottom: Spacing.md },
   avatar: {
@@ -256,7 +306,7 @@ const styles = StyleSheet.create({
   infoContent: { flex: 1 },
   infoLabel: { ...textStyles.caption, color: Colors.textTertiary },
   infoValue: { ...textStyles.body, color: Colors.textPrimary, marginTop: 1 },
-  menuRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 2 },
+  menuRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
   menuIconBg: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   menuLabel: { ...textStyles.body, color: Colors.textPrimary, flex: 1 },
   logoutBtn: {

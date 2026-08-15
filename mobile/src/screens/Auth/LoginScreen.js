@@ -17,13 +17,14 @@ import PrimaryButton from '../../components/Button/PrimaryButton';
 import { useAuth } from '../../context/AuthContext';
 
 const LoginScreen = ({ navigation, route }) => {
-  const { login, isLoading } = useAuth();
+  const { login } = useAuth();
   const roleParam = route?.params?.role || 'citizen';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -48,10 +49,13 @@ const LoginScreen = ({ navigation, route }) => {
   const handleLogin = async () => {
     if (!validate()) return;
     setApiError('');
+    setSubmitting(true);
     try {
       await login(email, password);
     } catch (e) {
       setApiError(e.message || 'Login failed. Please check your credentials.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -136,7 +140,7 @@ const LoginScreen = ({ navigation, route }) => {
           <PrimaryButton
             title="Sign In"
             onPress={handleLogin}
-            loading={isLoading}
+            loading={submitting}
             colors={buttonGradient}
             style={{ marginTop: Spacing.sm }}
           />
