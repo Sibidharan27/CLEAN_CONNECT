@@ -40,8 +40,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   // ─── Register ───────────────────────────────────────────────────────────────
-  const register = async (name, email, password, role = 'citizen') => {
-    const data = await apiRegister(name, email, password, role);
+  const register = async (name, email, password, role = 'citizen', phone = '', area = '') => {
+    const data = await apiRegister(name, email, password, role, phone, area);
     setUser(data.user);
     return data;
   };

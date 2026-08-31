@@ -290,10 +290,10 @@ export const CATEGORIES = [
 ];
 
 export const QUICK_ACTIONS = [
-  { id: 'qa1', title: 'Report\nIssue', icon: 'alert-circle-outline', color: '#E53935', bg: '#FFEBEE', route: 'ReportComplaint' },
-  { id: 'qa2', title: 'Track\nTruck', icon: 'truck-fast', color: '#1565C0', bg: '#E3F2FD', route: 'LiveTracking' },
-  { id: 'qa3', title: 'Collection\nSchedule', icon: 'calendar-month', color: '#2E7D32', bg: '#E8F5E9', route: 'CollectionSchedule' },
-  { id: 'qa4', title: 'My\nComplaints', icon: 'clipboard-list-outline', color: '#FF8F00', bg: '#FFF8E1', route: 'ComplaintHistory' },
+  { id: 'qa1', title: 'Report Issue', icon: 'alert-circle-outline', color: '#E53935', bg: '#FFEBEE', route: 'ReportComplaint' },
+  { id: 'qa2', title: 'Track Truck', icon: 'truck-fast', color: '#1565C0', bg: '#E3F2FD', route: 'LiveTracking' },
+  { id: 'qa3', title: 'Collection Schedule', icon: 'calendar-month', color: '#2E7D32', bg: '#E8F5E9', route: 'CollectionSchedule' },
+  { id: 'qa4', title: 'My Complaints', icon: 'clipboard-list-outline', color: '#FF8F00', bg: '#FFF8E1', route: 'ComplaintHistory' },
 ];
 
 export const TRUCK_INFO = {

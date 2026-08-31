@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,16 +8,21 @@ import {
   Animated,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors, textStyles, BorderRadius, Spacing, Shadows } from '../../theme';
 import InputField from '../../components/Input/InputField';
 import PrimaryButton from '../../components/Button/PrimaryButton';
+import { request } from '../../services/api';
 
 const STEPS = ['Enter Email', 'Verify OTP', 'New Password'];
+const RESEND_SECONDS = 60;
 
-const ForgotPassword = ({ navigation }) => {
+const ForgotPassword = ({ navigation, route }) => {
+  const roleParam = route?.params?.role || 'citizen';
+
   const [step, setStep] = useState(0);
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
@@ -25,6 +30,8 @@ const ForgotPassword = ({ navigation }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
+  const timerRef = useRef(null);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
@@ -41,13 +48,61 @@ const ForgotPassword = ({ navigation }) => {
     }).start();
   }, [step]);
 
+  // ─── Countdown timer for resend ─────────────────────────────────────────────
+  const startResendTimer = useCallback(() => {
+    setResendTimer(RESEND_SECONDS);
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setResendTimer(prev => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
+
+  useEffect(() => {
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, []);
+
+  const formatTime = (secs) => {
+    const m = Math.floor(secs / 60).toString().padStart(2, '0');
+    const s = (secs % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
+  // ─── Send OTP ────────────────────────────────────────────────────────────────
+  const sendOtp = async (emailAddr) => {
+    await request('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email: emailAddr }),
+    });
+  };
+
+  // ─── Resend OTP handler ──────────────────────────────────────────────────────
+  const handleResendOtp = async () => {
+    if (resendTimer > 0) return;
+    try {
+      setIsLoading(true);
+      await sendOtp(email);
+      startResendTimer();
+    } catch (e) {
+      Alert.alert('Error', e.message || 'Failed to resend OTP. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ─── Step handler ────────────────────────────────────────────────────────────
   const handleNext = async () => {
     const errs = {};
     if (step === 0) {
       if (!email.trim()) errs.email = 'Email is required';
       else if (!/\S+@\S+\.\S+/.test(email)) errs.email = 'Enter a valid email';
     } else if (step === 1) {
-      if (otp.length < 6) errs.otp = 'Enter the 6-digit OTP';
+      if (!otp.trim() || otp.length < 6) errs.otp = 'Enter the 6-digit OTP';
     } else {
       if (!newPassword) errs.newPassword = 'Password is required';
       else if (newPassword.length < 8) errs.newPassword = 'Minimum 8 characters';
@@ -57,13 +112,35 @@ const ForgotPassword = ({ navigation }) => {
     if (Object.keys(errs).length > 0) return;
 
     setIsLoading(true);
-    await new Promise(r => setTimeout(r, 1000));
-    setIsLoading(false);
-
-    if (step < 2) {
-      setStep(s => s + 1);
-    } else {
-      navigation.navigate('Login', { role: 'citizen' });
+    try {
+      if (step === 0) {
+        // Send OTP to email
+        await sendOtp(email);
+        startResendTimer();
+        setStep(1);
+      } else if (step === 1) {
+        // Verify OTP
+        await request('/auth/verify-otp', {
+          method: 'POST',
+          body: JSON.stringify({ email, otp }),
+        });
+        setStep(2);
+      } else {
+        // Reset password
+        await request('/auth/reset-password', {
+          method: 'POST',
+          body: JSON.stringify({ email, otp, newPassword }),
+        });
+        Alert.alert(
+          'Password Reset! ✅',
+          'Your password has been updated successfully. Please log in with your new password.',
+          [{ text: 'Sign In', onPress: () => navigation.navigate('Login', { role: roleParam }) }]
+        );
+      }
+    } catch (e) {
+      Alert.alert('Error', e.message || 'Something went wrong. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -108,10 +185,11 @@ const ForgotPassword = ({ navigation }) => {
           </View>
 
           <View style={styles.stepContent}>
+            {/* ── Step 0: Email ── */}
             {step === 0 && (
               <>
                 <Text style={styles.stepTitle}>Enter your Email</Text>
-                <Text style={styles.stepDesc}>We'll send a verification code to your registered email address.</Text>
+                <Text style={styles.stepDesc}>We'll send a 6-digit OTP to your registered email address.</Text>
                 <InputField
                   label="Email Address"
                   value={email}
@@ -120,9 +198,12 @@ const ForgotPassword = ({ navigation }) => {
                   icon="email-outline"
                   keyboardType="email-address"
                   error={errors.email}
+                  autoCapitalize="none"
                 />
               </>
             )}
+
+            {/* ── Step 1: OTP ── */}
             {step === 1 && (
               <>
                 <View style={styles.sentBox}>
@@ -138,13 +219,28 @@ const ForgotPassword = ({ navigation }) => {
                   placeholder="• • • • • •"
                   icon="numeric"
                   keyboardType="number-pad"
+                  maxLength={6}
                   error={errors.otp}
                 />
-                <TouchableOpacity style={styles.resendBtn}>
-                  <Text style={styles.resendText}>Resend OTP in <Text style={{ color: Colors.primary }}>00:45</Text></Text>
+                <TouchableOpacity
+                  style={styles.resendBtn}
+                  onPress={handleResendOtp}
+                  disabled={resendTimer > 0 || isLoading}
+                >
+                  {resendTimer > 0 ? (
+                    <Text style={styles.resendText}>
+                      Resend OTP in <Text style={{ color: Colors.primary }}>{formatTime(resendTimer)}</Text>
+                    </Text>
+                  ) : (
+                    <Text style={[styles.resendText, { color: Colors.primary, fontFamily: 'Poppins_600SemiBold' }]}>
+                      Resend OTP
+                    </Text>
+                  )}
                 </TouchableOpacity>
               </>
             )}
+
+            {/* ── Step 2: New Password ── */}
             {step === 2 && (
               <>
                 <Text style={styles.stepTitle}>Create New Password</Text>
@@ -183,7 +279,7 @@ const ForgotPassword = ({ navigation }) => {
             )}
 
             <PrimaryButton
-              title={step < 2 ? 'Continue' : 'Reset Password'}
+              title={step === 0 ? 'Send OTP' : step === 1 ? 'Verify OTP' : 'Reset Password'}
               onPress={handleNext}
               loading={isLoading}
               style={{ marginTop: Spacing.md }}
@@ -245,7 +341,7 @@ const styles = StyleSheet.create({
     padding: Spacing.md, marginBottom: Spacing.md,
   },
   sentText: { ...textStyles.bodySmall, color: Colors.textSecondary, flex: 1 },
-  resendBtn: { alignSelf: 'center', marginTop: Spacing.sm },
+  resendBtn: { alignSelf: 'center', marginTop: Spacing.md, paddingVertical: 6, paddingHorizontal: 12 },
   resendText: { ...textStyles.label, color: Colors.textSecondary },
   passwordStrength: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: -8, marginBottom: Spacing.sm },
   strengthLabel: { ...textStyles.caption, color: Colors.textTertiary },

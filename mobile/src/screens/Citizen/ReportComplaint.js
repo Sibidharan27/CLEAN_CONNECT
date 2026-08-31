@@ -22,7 +22,6 @@ const ReportComplaint = ({ navigation }) => {
   const { refreshUnreadCount } = useNotifications();
 
   const [form, setForm] = useState({
-    title: '',
     description: '',
     category: '',
     address: '',
@@ -82,9 +81,8 @@ const ReportComplaint = ({ navigation }) => {
 
   const validate = () => {
     const errs = {};
-    if (!form.title.trim()) errs.title = 'Please add a brief title';
     if (!form.description.trim()) errs.description = 'Description is required';
-    else if (form.description.trim().length < 20) errs.description = 'Please provide more details (min 20 chars)';
+    else if (form.description.trim().length < 10) errs.description = 'Please provide more details (min 10 chars)';
     if (!form.category) errs.category = 'Please select a category';
     if (!form.address.trim()) errs.address = 'Location is required — use GPS or type manually';
     setErrors(errs);
@@ -97,7 +95,6 @@ const ReportComplaint = ({ navigation }) => {
     setApiError('');
     try {
       const result = await createComplaint({
-        title: form.title,
         category: form.category,
         description: form.description,
         address: form.address,
@@ -166,8 +163,6 @@ const ReportComplaint = ({ navigation }) => {
           </TouchableOpacity>
 
           <View style={styles.formCard}>
-            <InputField label="Complaint Title" value={form.title} onChangeText={v => update('title', v)}
-              placeholder="e.g., Overflowing bin near park" icon="text-short" error={errors.title} autoCapitalize="sentences" />
             <Dropdown label="Category" value={form.category} options={CATEGORIES}
               onSelect={v => update('category', v)} placeholder="Select issue category" error={errors.category} />
             <InputField label="Description" value={form.description} onChangeText={v => update('description', v)}

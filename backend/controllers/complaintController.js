@@ -24,7 +24,9 @@ export const upload = multer({
 
 export async function createComplaint(req, res, next) {
   try {
-    const { title, category, description, address, latitude, longitude, priority } = req.body;
+    const { category, description, address, latitude, longitude, priority } = req.body;
+    // Auto-generate title from category so the UI doesn't need a separate title field
+    const title = `${category || 'General'} Complaint`;
     const images = req.files ? req.files.map(f => `/uploads/${f.filename}`) : [];
 
     const complaint = await Complaint.create({

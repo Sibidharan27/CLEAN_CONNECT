@@ -20,10 +20,10 @@ export async function login(email, password) {
   return data;
 }
 
-export async function register(name, email, password, role = 'citizen') {
+export async function register(name, email, password, role = 'citizen', phone = '', area = '') {
   const data = await request('/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ name, email, password, role }),
+    body: JSON.stringify({ name, email, password, role, phone, area }),
   });
   await storeToken(data.token);
   await AsyncStorage.setItem(USER_KEY, JSON.stringify(data.user));

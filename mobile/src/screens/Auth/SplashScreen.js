@@ -9,6 +9,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors, textStyles } from '../../theme';
+import { useAuth } from '../../context/AuthContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -20,6 +21,8 @@ const SplashScreen = ({ navigation }) => {
   const taglineOpacity = useRef(new Animated.Value(0)).current;
   const circleScale1 = useRef(new Animated.Value(0)).current;
   const circleScale2 = useRef(new Animated.Value(0)).current;
+
+  const { user, isRestoring } = useAuth();
 
   useEffect(() => {
     Animated.sequence([
@@ -45,12 +48,27 @@ const SplashScreen = ({ navigation }) => {
       Animated.timing(taglineOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
     ]).start();
 
-    // Navigate to role selection after 3 seconds
+    // Wait minimum 3s for the animation, then navigate only if no session
     const timer = setTimeout(() => {
-      navigation.replace('RoleSelection');
+      if (!isRestoring && !user) {
+        navigation.replace('RoleSelection');
+      }
     }, 3000);
     return () => clearTimeout(timer);
   }, []);
+
+  // If restore finishes AFTER the 3s timer has already fired and there's still no user,
+  // navigate then. This handles slow token validation on first launch.
+  useEffect(() => {
+    if (!isRestoring && !user) {
+      // Only navigate if we're actually on the Splash screen still
+      const nav = navigation.getState?.();
+      const currentRoute = nav?.routes?.[nav.index]?.name;
+      if (currentRoute === 'Splash') {
+        navigation.replace('RoleSelection');
+      }
+    }
+  }, [isRestoring]);
 
   return (
     <LinearGradient

@@ -103,6 +103,8 @@ const ComplaintHistory = ({ navigation }) => {
                 date: item.createdAt?.split('T')[0] || '',
                 time: item.createdAt ? new Date(item.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '',
                 location: item.location?.address || 'Location not specified',
+                // Normalize populated objects to strings
+                assignedDriver: typeof item.assignedDriver === 'object' ? item.assignedDriver?.name : item.assignedDriver,
               }}
               onPress={() => navigation.navigate('ComplaintDetails', { complaint: item })}
             />

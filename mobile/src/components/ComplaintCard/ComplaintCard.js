@@ -50,7 +50,9 @@ const ComplaintCard = ({ complaint, onPress, style }) => {
       {complaint.assignedDriver && (
         <View style={styles.driverRow}>
           <MaterialCommunityIcons name="account-outline" size={13} color={Colors.primaryLight} />
-          <Text style={styles.driverText}>Assigned: {complaint.assignedDriver}</Text>
+          <Text style={styles.driverText}>
+            Assigned: {typeof complaint.assignedDriver === 'object' ? complaint.assignedDriver?.name : complaint.assignedDriver}
+          </Text>
         </View>
       )}
     </TouchableOpacity>

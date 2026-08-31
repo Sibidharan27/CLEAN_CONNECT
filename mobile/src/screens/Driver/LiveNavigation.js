@@ -75,11 +75,58 @@ const LiveNavigation = ({ navigation }) => {
   const nextStop = stops[currentStopIndex + 1] || null;
   const completedCount = stops.filter(s => s.status === 'completed').length;
 
+  const COMPLETION_RADIUS_KM = 0.3; // 300 metres
+
+  function haversineKm(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
   const handleMarkArrived = async () => {
     if (!routeData?._id || !currentStop?._id) {
       Alert.alert('No route', 'No stop to complete.');
       return;
     }
+
+    // Geofence check: must be within 300m of the stop
+    if (currentStop.latitude && currentStop.longitude) {
+      let driverLoc = myLocation;
+      if (!driverLoc) {
+        try {
+          driverLoc = await getCurrentLocation();
+        } catch {
+          Alert.alert(
+            '📍 Location Required',
+            'GPS location is required to verify you are at the collection stop before marking it complete.'
+          );
+          return;
+        }
+      }
+
+      if (driverLoc?.latitude && driverLoc?.longitude) {
+        const dist = haversineKm(
+          driverLoc.latitude, driverLoc.longitude,
+          currentStop.latitude, currentStop.longitude
+        );
+        if (dist > COMPLETION_RADIUS_KM) {
+          const distMetres = Math.round(dist * 1000);
+          Alert.alert(
+            '📍 Too Far Away',
+            `You are ${distMetres}m away from Stop #${currentStop.stopNumber} ("${currentStop.address}").\n\nYou must be within 300m of the collection location to mark it as completed.\n\nPlease drive to the location first.`,
+            [{ text: 'Understood' }]
+          );
+          return;
+        }
+      }
+    }
+
     Alert.alert('Arrived?', `Mark "${currentStop.address}" as completed?`, [
       { text: 'Cancel', style: 'cancel' },
       {

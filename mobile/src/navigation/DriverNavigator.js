@@ -52,9 +52,9 @@ const DriverTabs = () => (
       name="AssignedRoutes"
       component={AssignedRoutes}
       options={{
-        tabBarLabel: 'My Route',
+        tabBarLabel: 'Assignments',
         tabBarIcon: ({ focused, color }) => (
-          <TabIcon name="map" focused={focused} color={color} />
+          <TabIcon name="clipboard-list" focused={focused} color={color} />
         ),
       }}
     />

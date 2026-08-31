@@ -32,6 +32,7 @@ const RegisterScreen = ({ navigation, route }) => {
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -56,6 +57,7 @@ const RegisterScreen = ({ navigation, route }) => {
     if (!form.password) errs.password = 'Password is required';
     else if (form.password.length < 8) errs.password = 'Minimum 8 characters';
     if (form.password !== form.confirmPassword) errs.confirmPassword = 'Passwords do not match';
+    if (!termsAccepted) errs.terms = 'You must accept the Terms of Service to continue';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -65,7 +67,7 @@ const RegisterScreen = ({ navigation, route }) => {
     setApiError('');
     setIsLoading(true);
     try {
-      await register(form.name, form.email, form.password, roleParam);
+      await register(form.name, form.email, form.password, roleParam, form.phone, form.area);
       // AuthContext sets user → AppNavigator auto-navigates
     } catch (e) {
       setApiError(e.message || 'Registration failed. Please try again.');
@@ -127,10 +129,26 @@ const RegisterScreen = ({ navigation, route }) => {
             onChangeText={v => update('confirmPassword', v)} placeholder="Re-enter password"
             icon="lock-check-outline" secureTextEntry error={errors.confirmPassword} />
 
-          <View style={styles.termsRow}>
-            <MaterialCommunityIcons name="checkbox-marked" size={18} color={Colors.primary} />
-            <Text style={styles.termsText}>I agree to the <Text style={styles.termsLink}>Terms of Service</Text> and <Text style={styles.termsLink}>Privacy Policy</Text></Text>
-          </View>
+          <TouchableOpacity
+            style={styles.termsRow}
+            onPress={() => setTermsAccepted(v => !v)}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons
+              name={termsAccepted ? 'checkbox-marked' : 'checkbox-blank-outline'}
+              size={20}
+              color={termsAccepted ? Colors.primary : errors.terms ? Colors.danger : Colors.textTertiary}
+            />
+            <Text style={[styles.termsText, errors.terms && { color: Colors.danger }]}>
+              I agree to the <Text style={styles.termsLink}>Terms of Service</Text> and <Text style={styles.termsLink}>Privacy Policy</Text>
+            </Text>
+          </TouchableOpacity>
+          {errors.terms ? (
+            <View style={styles.termsErrorRow}>
+              <MaterialCommunityIcons name="alert-circle-outline" size={13} color={Colors.danger} />
+              <Text style={styles.termsErrorText}>{errors.terms}</Text>
+            </View>
+          ) : null}
 
           {apiError ? (
             <View style={styles.errorBox}>
@@ -209,6 +227,8 @@ const styles = StyleSheet.create({
   termsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: Spacing.sm },
   termsText: { ...textStyles.bodySmall, color: Colors.textSecondary, flex: 1 },
   termsLink: { color: Colors.primary, fontFamily: 'Poppins_500Medium' },
+  termsErrorRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4, marginLeft: 28 },
+  termsErrorText: { ...textStyles.caption, color: Colors.danger, flex: 1 },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',

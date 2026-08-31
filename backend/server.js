@@ -12,6 +12,7 @@ import trackingRoutes from './routes/trackingRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import driverRoutes from './routes/driverRoutes.js';
 import scheduleRoutes from './routes/scheduleRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 import { setIo } from './controllers/driverController.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 
@@ -43,6 +44,7 @@ app.use('/api/tracking', trackingRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/driver', driverRoutes);
 app.use('/api/schedules', scheduleRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

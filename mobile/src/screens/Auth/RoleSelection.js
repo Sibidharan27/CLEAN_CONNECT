@@ -145,7 +145,7 @@ const RoleSelection = ({ navigation }) => {
         ))}
 
         <Text style={styles.footer}>
-          Municipal Corporation of Chennai © 2025
+          Municipal Corporation of Coimbatore © 2026
         </Text>
       </ScrollView>
     </LinearGradient>

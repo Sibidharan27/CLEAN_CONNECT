@@ -7,8 +7,8 @@ const timelineEntrySchema = new mongoose.Schema({
 }, { _id: false });
 
 const complaintSchema = new mongoose.Schema({
-  citizen: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  title: { type: String, required: true, trim: true },
+  citizen: { type: mongoose.Schema.Types.ObjectId, required: true },
+  title: { type: String, trim: true, default: '' },
   category: { type: String, required: true },
   description: { type: String, required: true },
   location: {
@@ -27,7 +27,7 @@ const complaintSchema = new mongoose.Schema({
     enum: ['low', 'medium', 'high'],
     default: 'medium',
   },
-  assignedDriver: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  assignedDriver: { type: mongoose.Schema.Types.ObjectId, ref: 'Driver' },
   timeline: [timelineEntrySchema],
 }, { timestamps: true });
 

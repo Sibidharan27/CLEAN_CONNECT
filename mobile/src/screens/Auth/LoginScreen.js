@@ -160,12 +160,20 @@ const LoginScreen = ({ navigation, route }) => {
           ) : null}
         </Animated.View>
 
-        {/* ── Register Link ── */}
+        {/* ── Register / Driver info Link ── */}
         <Animated.View style={[styles.registerRow, { opacity: fadeAnim }]}>
-          <Text style={styles.registerText}>Don't have an account? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Register', { role: roleParam })}>
-            <Text style={[styles.registerLink, { color: primaryColor }]}>Create Account</Text>
-          </TouchableOpacity>
+          {isDriver ? (
+            <Text style={styles.driverInfoText}>
+              🔒 Driver accounts are created by administrators only.
+            </Text>
+          ) : (
+            <>
+              <Text style={styles.registerText}>Don't have an account? </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Register', { role: roleParam })}>
+                <Text style={[styles.registerLink, { color: primaryColor }]}>Create Account</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -260,6 +268,7 @@ const styles = StyleSheet.create({
   },
   registerText: { ...textStyles.body, color: Colors.textSecondary },
   registerLink: { ...textStyles.body, fontFamily: 'Poppins_600SemiBold' },
+  driverInfoText: { ...textStyles.bodySmall, color: Colors.textTertiary, textAlign: 'center', fontStyle: 'italic', paddingHorizontal: Spacing.base },
 });
 
 export default LoginScreen;

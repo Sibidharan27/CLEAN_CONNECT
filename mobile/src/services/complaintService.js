@@ -6,9 +6,8 @@ export const getComplaintById = (id) => authRequest(`/complaints/${id}`);
 
 export const getComplaintStats = () => authRequest('/complaints/stats');
 
-export async function createComplaint({ title, category, description, address, latitude, longitude, imageUri }) {
+export async function createComplaint({ category, description, address, latitude, longitude, imageUri }) {
   const formData = new FormData();
-  formData.append('title', title);
   formData.append('category', category);
   formData.append('description', description);
   formData.append('address', address || '');

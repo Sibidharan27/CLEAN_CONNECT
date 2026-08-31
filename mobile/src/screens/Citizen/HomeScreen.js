@@ -29,12 +29,20 @@ const QuickActionCard = ({ action, onPress, delay }) => {
     Animated.spring(scaleAnim, { toValue: 1, delay, tension: 60, friction: 7, useNativeDriver: true }).start();
   }, []);
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }], flex: 1 }}>
-      <TouchableOpacity style={[styles.quickActionCard, { backgroundColor: action.bg }]} onPress={onPress} activeOpacity={0.85}>
+    <Animated.View style={[styles.qaCardWrapper, { transform: [{ scale: scaleAnim }] }]}>
+      <TouchableOpacity
+        style={[styles.quickActionCard, { backgroundColor: action.bg }]}
+        onPress={onPress}
+        activeOpacity={0.85}
+      >
         <View style={[styles.qaIconBg, { backgroundColor: action.color + '20' }]}>
-          <MaterialCommunityIcons name={action.icon} size={24} color={action.color} />
+          <MaterialCommunityIcons name={action.icon} size={22} color={action.color} />
         </View>
-        <Text style={[styles.qaTitle, { color: action.color }]}>{action.title}</Text>
+        <View style={styles.qaTextContainer}>
+          <Text style={[styles.qaTitle, { color: action.color }]} numberOfLines={2}>
+            {action.title}
+          </Text>
+        </View>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -216,7 +224,12 @@ const HomeScreen = ({ navigation }) => {
           recentComplaints.map(c => (
             <ComplaintCard
               key={c._id}
-              complaint={{ ...c, id: c._id, status: c.status === 'in_progress' ? 'In Progress' : c.status === 'open' ? 'Pending' : c.status === 'resolved' ? 'Completed' : c.status }}
+              complaint={{
+                ...c,
+                id: c._id,
+                status: c.status === 'in_progress' ? 'In Progress' : c.status === 'open' ? 'Pending' : c.status === 'resolved' ? 'Completed' : c.status,
+                assignedDriver: typeof c.assignedDriver === 'object' ? c.assignedDriver?.name : c.assignedDriver,
+              }}
               onPress={() => navigation.navigate('ComplaintDetails', { complaint: c })}
             />
           ))
@@ -271,10 +284,42 @@ const styles = StyleSheet.create({
   sectionTitle: { ...textStyles.h6, color: Colors.textPrimary, marginBottom: Spacing.md },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
   seeAllText: { ...textStyles.label, color: Colors.primary },
-  quickActionsGrid: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.xl },
-  quickActionCard: { borderRadius: BorderRadius.lg, padding: Spacing.md, alignItems: 'center', flex: 1, minHeight: 90 },
-  qaIconBg: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  qaTitle: { ...textStyles.caption, textAlign: 'center', fontFamily: 'Poppins_600SemiBold' },
+  quickActionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.xl,
+    rowGap: Spacing.sm,
+  },
+  qaCardWrapper: {
+    width: '48.5%',
+  },
+  quickActionCard: {
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 64,
+  },
+  qaIconBg: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  qaTextContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  qaTitle: {
+    ...textStyles.label,
+    fontFamily: 'Poppins_600SemiBold',
+    fontSize: 13,
+    lineHeight: 18,
+  },
   nearbyBanner: { borderRadius: BorderRadius.lg, overflow: 'hidden', marginBottom: Spacing.xl },
   nearbyGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.base },
   nearbyLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
