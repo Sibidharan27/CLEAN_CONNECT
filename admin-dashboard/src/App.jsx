@@ -194,6 +194,141 @@ function DashboardView({ token }) {
   );
 }
 
+// ─── Complaint Detail Modal ───────────────────────────────────────────────────
+function ComplaintDetailModal({ complaint, onClose, apiBase }) {
+  if (!complaint) return null;
+  const { title, category, description, location, priority, status, images,
+          citizen, assignedDriver, timeline, createdAt } = complaint;
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 620, maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+          <div>
+            <h3 className="card-title" style={{ marginBottom: 4 }}>{title}</h3>
+            <span style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--text-dim)' }}>#{complaint._id?.slice(-8).toUpperCase()}</span>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', fontSize: 20, lineHeight: 1 }}>✕</button>
+        </div>
+
+        {/* Uploaded Images */}
+        {images && images.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Photo Evidence</div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {images.map((img, i) => (
+                <a key={i} href={`${apiBase}${img}`} target="_blank" rel="noopener noreferrer">
+                  <img
+                    src={`${apiBase}${img}`}
+                    alt={`Evidence ${i + 1}`}
+                    style={{ width: 140, height: 100, objectFit: 'cover', borderRadius: 10, border: '2px solid var(--border-color)', cursor: 'pointer', transition: 'opacity .2s' }}
+                    onError={e => { e.target.style.display = 'none'; }}
+                    onMouseEnter={e => { e.target.style.opacity = 0.8; }}
+                    onMouseLeave={e => { e.target.style.opacity = 1; }}
+                  />
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+        {(!images || images.length === 0) && (
+          <div style={{ marginBottom: 20, padding: 16, background: 'var(--bg-surface)', borderRadius: 10, textAlign: 'center', color: 'var(--text-dim)', fontSize: 13 }}>
+            📷 No photo evidence uploaded
+          </div>
+        )}
+
+        {/* Details Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
+          {[
+            ['Category', category || '—'],
+            ['Priority', priority || '—'],
+            ['Status', status || '—'],
+            ['Submitted', createdAt ? new Date(createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'],
+          ].map(([label, val]) => (
+            <div key={label} style={{ background: 'var(--bg-surface)', borderRadius: 10, padding: '12px 14px' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{label}</div>
+              <div style={{ fontSize: 14, color: 'var(--text-main)', fontWeight: 500, textTransform: label === 'Category' || label === 'Priority' || label === 'Status' ? 'capitalize' : 'none' }}>{val}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Description */}
+        <div style={{ marginBottom: 16, background: 'var(--bg-surface)', borderRadius: 10, padding: '12px 14px' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Description</div>
+          <p style={{ fontSize: 14, color: 'var(--text-main)', lineHeight: 1.6, margin: 0 }}>{description || '—'}</p>
+        </div>
+
+        {/* Location */}
+        <div style={{ marginBottom: 16, background: 'var(--bg-surface)', borderRadius: 10, padding: '12px 14px' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>📍 Location</div>
+          <div style={{ fontSize: 14, color: 'var(--text-main)', marginBottom: 4 }}>{location?.address || '—'}</div>
+          {location?.latitude && location?.longitude && (
+            <div style={{ fontSize: 12, color: 'var(--text-dim)', fontFamily: 'monospace' }}>
+              {location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}
+            </div>
+          )}
+        </div>
+
+        {/* Citizen Info */}
+        {citizen && (
+          <div style={{ marginBottom: 16, background: 'var(--bg-surface)', borderRadius: 10, padding: '12px 14px' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>👤 Reported By</div>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
+                {citizen.name?.[0]?.toUpperCase() || '?'}
+              </div>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{citizen.name}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{citizen.email}{citizen.phone ? ` · ${citizen.phone}` : ''}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Assigned Driver */}
+        {assignedDriver && (
+          <div style={{ marginBottom: 16, background: 'var(--bg-surface)', borderRadius: 10, padding: '12px 14px' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>🚛 Assigned Driver</div>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--accent-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
+                {assignedDriver.name?.[0]?.toUpperCase() || '?'}
+              </div>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{assignedDriver.name}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{assignedDriver.phone || 'No phone'}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Timeline */}
+        {timeline && timeline.length > 0 && (
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>📋 Timeline</div>
+            <div style={{ position: 'relative', paddingLeft: 20 }}>
+              {timeline.map((t, i) => (
+                <div key={i} style={{ position: 'relative', paddingBottom: i < timeline.length - 1 ? 16 : 0 }}>
+                  {i < timeline.length - 1 && <div style={{ position: 'absolute', left: -13, top: 16, width: 2, bottom: 0, background: 'var(--border-color)' }} />}
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: i === timeline.length - 1 ? 'var(--primary)' : 'var(--border-color)', marginTop: 5, flexShrink: 0, marginLeft: -16 }} />
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)', textTransform: 'capitalize' }}>{t.status?.replace('_', ' ')}</div>
+                      {t.note && <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{t.note}</div>}
+                      {t.time && <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>{new Date(t.time).toLocaleString('en-IN')}</div>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <button className="btn btn-outline" style={{ width: '100%', marginTop: 20 }} onClick={onClose}>Close</button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Complaints ───────────────────────────────────────────────────────────────
 function ComplaintsView({ token }) {
   const [complaints, setComplaints] = useState([]);
@@ -202,7 +337,10 @@ function ComplaintsView({ token }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [updating, setUpdating] = useState(null);
-  const [modal, setModal] = useState(null); // { complaint }
+  const [modal, setModal] = useState(null); // assign driver modal
+  const [detailModal, setDetailModal] = useState(null); // complaint detail modal
+
+  const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
 
   const headers = { Authorization: `Bearer ${token}` };
 
@@ -294,6 +432,7 @@ function ComplaintsView({ token }) {
                   <td style={{ fontSize: 13 }}>{c.assignedDriver?.name || <span style={{ color: 'var(--text-dim)' }}>Unassigned</span>}</td>
                   <td>
                     <div className="action-btns">
+                      <button className="btn btn-sm btn-outline" onClick={() => setDetailModal(c)} title="View full details"><Icon name="search" size={13} /> View</button>
                       {c.status === 'open' && (
                         <button className="btn btn-sm btn-blue" onClick={() => setModal(c)} disabled={updating === c._id}>Assign</button>
                       )}
@@ -312,6 +451,15 @@ function ComplaintsView({ token }) {
           </table>
         )}
       </div>
+
+      {/* Complaint Detail Modal */}
+      {detailModal && (
+        <ComplaintDetailModal
+          complaint={detailModal}
+          onClose={() => setDetailModal(null)}
+          apiBase={API_BASE}
+        />
+      )}
 
       {/* Assign Driver Modal */}
       {modal && (

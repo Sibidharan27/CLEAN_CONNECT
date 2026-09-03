@@ -10,6 +10,8 @@ import {
   Alert,
   Linking,
   ScrollView,
+  Image,
+  Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -17,8 +19,11 @@ import { Colors, textStyles, BorderRadius, Spacing, Shadows } from '../../theme'
 import Header from '../../components/Header/Header';
 import MapCard from '../../components/Map/MapCard';
 import { getDriverRoutes, completeStop, startRoute } from '../../services/scheduleService';
-import { authRequest } from '../../services/api';
+import { authRequest, API_URL } from '../../services/api';
 import { useLocation } from '../../context/LocationContext';
+
+// Base URL for static image files (strips /api suffix)
+const IMG_BASE = API_URL.replace('/api', '');
 
 // ─── Geofence radius in kilometres ───────────────────────────────────────────
 const COMPLETION_RADIUS_KM = 0.3; // 300 metres
@@ -72,6 +77,7 @@ const AssignedRoutes = ({ navigation }) => {
   // Assigned complaints state
   const [complaints, setComplaints] = useState([]);
   const [complaintsLoading, setComplaintsLoading] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
 
   const loadRoutes = useCallback(async () => {
     try {
@@ -470,6 +476,36 @@ const AssignedRoutes = ({ navigation }) => {
                     </View>
                   ) : null}
 
+                  {/* Uploaded Images */}
+                  {item.images && item.images.length > 0 ? (
+                    <View style={styles.imagesSection}>
+                      <View style={styles.imagesSectionHeader}>
+                        <MaterialCommunityIcons name="image-multiple-outline" size={13} color={Colors.textSecondary} />
+                        <Text style={styles.imagesSectionLabel}>Photo Evidence ({item.images.length})</Text>
+                      </View>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageScroll}>
+                        {item.images.map((img, idx) => (
+                          <TouchableOpacity
+                            key={idx}
+                            onPress={() => setSelectedImage(`${IMG_BASE}${img}`)}
+                            activeOpacity={0.85}
+                          >
+                            <Image
+                              source={{ uri: `${IMG_BASE}${img}` }}
+                              style={styles.evidenceImage}
+                              resizeMode="cover"
+                            />
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  ) : (
+                    <View style={styles.noImageBadge}>
+                      <MaterialCommunityIcons name="image-off-outline" size={13} color={Colors.textTertiary} />
+                      <Text style={styles.noImageText}>No photo uploaded</Text>
+                    </View>
+                  )}
+
                   {/* Action buttons */}
                   <View style={styles.complaintActions}>
                     {hasCoords ? (
@@ -559,6 +595,50 @@ const AssignedRoutes = ({ navigation }) => {
           />
         )
       )}
+
+      {/* ─── Image Preview Popup Modal ─────────────────────── */}
+      <Modal
+        visible={!!selectedImage}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setSelectedImage(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setSelectedImage(null)}
+          />
+          <View style={styles.imageModalCard}>
+            <View style={styles.imageModalHeader}>
+              <View style={styles.imageModalTitleRow}>
+                <MaterialCommunityIcons name="image-outline" size={18} color={Colors.primary} />
+                <Text style={styles.imageModalTitle}>Photo Evidence</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.modalCloseBtn}
+                onPress={() => setSelectedImage(null)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <MaterialCommunityIcons name="close" size={20} color={Colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            {selectedImage && (
+              <Image
+                source={{ uri: selectedImage }}
+                style={styles.modalFullImage}
+                resizeMode="contain"
+              />
+            )}
+            <TouchableOpacity
+              style={styles.modalDismissBtn}
+              onPress={() => setSelectedImage(null)}
+            >
+              <Text style={styles.modalDismissText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -648,9 +728,85 @@ const styles = StyleSheet.create({
   navigateComplaintBtn: { backgroundColor: Colors.primary },
   resolveComplaintBtn: { backgroundColor: Colors.primarySurface, borderWidth: 1.5, borderColor: Colors.primary + '50' },
   complaintActionBtnText: { ...textStyles.label, color: '#fff' },
+
+  // ─── Image evidence ──
+  imagesSection: { marginBottom: Spacing.sm },
+  imagesSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 },
+  imagesSectionLabel: { ...textStyles.caption, color: Colors.textSecondary, fontFamily: 'Poppins_600SemiBold' },
+  imageScroll: { flexDirection: 'row' },
+  evidenceImage: { width: 100, height: 72, borderRadius: BorderRadius.md, marginRight: 8, borderWidth: 1.5, borderColor: Colors.border },
+  noImageBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: Colors.surfaceVariant, borderRadius: BorderRadius.sm, paddingHorizontal: 10, paddingVertical: 6, marginBottom: Spacing.sm, alignSelf: 'flex-start' },
+  noImageText: { ...textStyles.caption, color: Colors.textTertiary },
+
   emptyComplaints: { alignItems: 'center', paddingTop: 60, paddingHorizontal: Spacing.xl },
   emptyTitle: { ...textStyles.h6, color: Colors.textSecondary, marginTop: 16, textAlign: 'center' },
   emptySubtitle: { ...textStyles.body, color: Colors.textTertiary, marginTop: 8, textAlign: 'center', lineHeight: 22 },
+
+  // ─── Image Modal Styles ──
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.base,
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  imageModalCard: {
+    width: '100%',
+    maxHeight: '85%',
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.md,
+    alignItems: 'center',
+    overflow: 'hidden',
+    ...Shadows.xl,
+  },
+  imageModalHeader: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    marginBottom: Spacing.sm,
+  },
+  imageModalTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  imageModalTitle: {
+    ...textStyles.labelLarge,
+    color: Colors.textPrimary,
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.surfaceVariant,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalFullImage: {
+    width: '100%',
+    height: 340,
+    borderRadius: BorderRadius.md,
+    backgroundColor: '#000',
+  },
+  modalDismissBtn: {
+    marginTop: Spacing.md,
+    backgroundColor: Colors.primarySurface,
+    paddingVertical: 10,
+    paddingHorizontal: 28,
+    borderRadius: BorderRadius.full,
+  },
+  modalDismissText: {
+    ...textStyles.label,
+    color: Colors.primary,
+  },
 });
 
 export default AssignedRoutes;
