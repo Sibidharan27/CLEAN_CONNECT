@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const routeSchema = new mongoose.Schema({
-  driver: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  driver: { type: mongoose.Schema.Types.ObjectId, ref: 'Driver', required: true },
   vehicleId: { type: String, required: true },
   date: { type: String, required: true }, // YYYY-MM-DD
   stops: [{

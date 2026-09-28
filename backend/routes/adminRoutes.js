@@ -3,6 +3,7 @@ import { protect, adminOnly } from '../middleware/authMiddleware.js';
 import {
   getStats, getAllComplaints, updateComplaint, deleteComplaint,
   getAllDrivers, getAllCitizens, getAllRoutes, getAllSchedules, createDriver,
+  getAllVehicles, createVehicle, updateVehicle, deleteVehicle,
 } from '../controllers/adminController.js';
 
 const router = Router();
@@ -19,5 +20,11 @@ router.post('/drivers', createDriver);
 router.get('/citizens', getAllCitizens);
 router.get('/routes', getAllRoutes);
 router.get('/schedules', getAllSchedules);
+
+// Vehicle management
+router.get('/vehicles', getAllVehicles);
+router.post('/vehicles', createVehicle);
+router.patch('/vehicles/:id', updateVehicle);
+router.delete('/vehicles/:id', deleteVehicle);
 
 export default router;

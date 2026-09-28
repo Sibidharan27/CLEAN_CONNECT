@@ -16,8 +16,8 @@ import { sendTruckNearbyAlert } from '../../services/notificationService';
 const { height } = Dimensions.get('window');
 const VEHICLE_ID = 'GCT-001';
 
-// Default to Coimbatore center
-const COIMBATORE_DEFAULT = { latitude: 11.0168, longitude: 76.9558 };
+// Default to Peelamedu center (street-level view)
+const PEELAMEDU_DEFAULT = { latitude: 11.0240, longitude: 77.0150 };
 
 const LiveTracking = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -102,7 +102,7 @@ const LiveTracking = ({ navigation }) => {
 
   const userCoords = myLocation
     ? { latitude: myLocation.latitude, longitude: myLocation.longitude }
-    : COIMBATORE_DEFAULT;
+    : PEELAMEDU_DEFAULT;
 
   const truckCoords = truckData?.latitude
     ? { latitude: truckData.latitude, longitude: truckData.longitude }
@@ -111,8 +111,8 @@ const LiveTracking = ({ navigation }) => {
   const initialRegion = {
     latitude: userCoords.latitude,
     longitude: userCoords.longitude,
-    latitudeDelta: 0.05,
-    longitudeDelta: 0.05,
+    latitudeDelta: 0.015,
+    longitudeDelta: 0.015,
   };
 
   const truck = truckData ? {

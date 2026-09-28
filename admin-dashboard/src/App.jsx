@@ -8,11 +8,12 @@ const Icon = ({ name, size = 18 }) => {
     dashboard: <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>,
     complaints: <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 9h-2V5h2v6zm0 4h-2v-2h2v2z"/>,
     drivers: <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>,
+    vehicles: <path d="M17 8H3v9h1.56c.35 1.17 1.43 2 2.44 2s2.09-.83 2.44-2h5.12c.35 1.17 1.43 2 2.44 2s2.09-.83 2.44-2H21v-5l-4-4zM3 11V9h4v2H3zm4 6.5c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm7-6.5H9V9h5v2zm3 6.5c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm1-6.5h-3V9h2l1 1v1z"/>,
     routes: <path d="M21 3L3 10.53v.98l6.84 2.65L12.48 21h.98z"/>,
     schedules: <path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/>,
     analytics: <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>,
-    logout: <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>,
     users: <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>,
+    logout: <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>,
     search: <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>,
     check: <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>,
     trash: <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>,
@@ -26,6 +27,20 @@ const Icon = ({ name, size = 18 }) => {
       {icons[name] || null}
     </svg>
   );
+};
+
+// ─── Vehicle type display helpers ─────────────────────────────────────────────
+const VEHICLE_TYPES = {
+  garbage_truck: { label: 'Garbage Truck', emoji: '🚛', color: '#10b981' },
+  jcb:           { label: 'JCB / Excavator', emoji: '🏗️', color: '#f59e0b' },
+  mini_loader:   { label: 'Mini Loader', emoji: '🚜', color: '#3b82f6' },
+  road_sweeper:  { label: 'Road Sweeper', emoji: '🧹', color: '#8b5cf6' },
+};
+
+const VEHICLE_STATUS = {
+  active:      { cls: 'badge-resolved', label: 'Active' },
+  maintenance: { cls: 'badge-pending', label: 'Maintenance' },
+  inactive:    { cls: 'badge-dim', label: 'Inactive' },
 };
 
 // ─── Admin Login ──────────────────────────────────────────────────────────────
@@ -78,7 +93,7 @@ function AdminLogin({ onLogin }) {
           </button>
         </form>
         <p className="login-hint">
-          No admin account? Register on the app with role &ldquo;admin&rdquo; via DB, then log in here.
+          Default credentials: <strong>admin@cleanconnect.gov.in</strong> &bull; password: <strong>admin123</strong>
         </p>
       </div>
     </div>
@@ -139,7 +154,7 @@ function DashboardView({ token }) {
       <div className="header">
         <div className="header-title">
           <h1>System Overview</h1>
-          <p>Real-time metrics for CleanConnect+ waste collection network</p>
+          <p>Real-time metrics for CleanConnect+ Peelamedu waste collection network</p>
         </div>
         <button className="btn btn-outline" onClick={load}><Icon name="refresh" size={15} /> Refresh</button>
       </div>
@@ -148,7 +163,7 @@ function DashboardView({ token }) {
         <StatCard label="Total Complaints" value={stats?.totalComplaints} sub={`${stats?.openComplaints} open · ${stats?.inProgressComplaints} in progress`} color="var(--accent-amber)" />
         <StatCard label="Resolved" value={stats?.resolvedComplaints} sub={`${stats?.resolutionRate}% resolution rate`} color="var(--primary)" />
         <StatCard label="Registered Drivers" value={stats?.totalDrivers} sub={`${stats?.activeRoutes} routes active today`} color="var(--accent-blue)" />
-        <StatCard label="Citizens" value={stats?.totalCitizens} sub="Registered users" color="var(--accent-purple)" />
+        <StatCard label="Fleet Vehicles" value={stats?.totalVehicles} sub={`${stats?.activeVehicles} active · ${stats?.maintenanceVehicles} in maintenance`} color="var(--accent-purple)" />
       </div>
 
       {/* Category Breakdown */}
@@ -554,7 +569,7 @@ function DriversView({ token }) {
         {loading ? <Spinner /> : (
           <table>
             <thead><tr>
-              <th>Driver</th><th>Employee ID</th><th>Vehicle</th><th>Zone</th><th>Shift</th><th>Today's Route</th><th>Stops</th>
+              <th>Driver</th><th>Employee ID</th><th>Assigned Vehicle</th><th>Zone</th><th>Shift</th><th>Today's Route</th><th>Stops</th>
             </tr></thead>
             <tbody>
               {drivers.length === 0 ? (
@@ -562,6 +577,7 @@ function DriversView({ token }) {
               ) : drivers.map(d => {
                 const done = d.route?.stops?.filter(s => s.status === 'completed').length || 0;
                 const total = d.route?.stops?.length || 0;
+                const veh = d.assignedVehicle;
                 return (
                   <tr key={d._id}>
                     <td>
@@ -569,7 +585,16 @@ function DriversView({ token }) {
                       <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{d.email}</div>
                     </td>
                     <td style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{d.employeeId || '—'}</td>
-                    <td>{d.vehicleId || '—'}</td>
+                    <td>
+                      {veh ? (
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: 13 }}>{VEHICLE_TYPES[veh.type]?.emoji} {veh.vehicleId}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{VEHICLE_TYPES[veh.type]?.label} · {veh.plateNumber}</div>
+                        </div>
+                      ) : (
+                        <span style={{ color: 'var(--text-dim)' }}>{d.vehicleId || 'Unassigned'}</span>
+                      )}
+                    </td>
                     <td>{d.zone || '—'}</td>
                     <td style={{ color: 'var(--text-muted)' }}>{d.shift || '—'}</td>
                     <td><Badge status={d.route?.status || 'no route'} /></td>
@@ -592,6 +617,295 @@ function DriversView({ token }) {
   );
 }
 
+// ─── Vehicles ─────────────────────────────────────────────────────────────────
+function VehiclesView({ token }) {
+  const [vehicles, setVehicles] = useState([]);
+  const [drivers, setDrivers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [assignModal, setAssignModal] = useState(null);
+  const [form, setForm] = useState({ vehicleId: '', type: 'garbage_truck', plateNumber: '', capacity: '', currentArea: 'Peelamedu', notes: '' });
+  const [adding, setAdding] = useState(false);
+  const [updating, setUpdating] = useState(null);
+  const headers = { Authorization: `Bearer ${token}` };
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [vRes, dRes] = await Promise.all([
+        api.get('/admin/vehicles', { headers }),
+        api.get('/admin/drivers', { headers }),
+      ]);
+      setVehicles(vRes.data);
+      setDrivers(dRes.data || []);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  }, [token]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const addVehicle = async (e) => {
+    e.preventDefault();
+    setAdding(true);
+    try {
+      await api.post('/admin/vehicles', form, { headers });
+      setShowAdd(false);
+      setForm({ vehicleId: '', type: 'garbage_truck', plateNumber: '', capacity: '', currentArea: 'Peelamedu', notes: '' });
+      load();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to add vehicle');
+    } finally { setAdding(false); }
+  };
+
+  const updateStatus = async (id, status) => {
+    setUpdating(id);
+    try {
+      await api.patch(`/admin/vehicles/${id}`, { status }, { headers });
+      setVehicles(prev => prev.map(v => v._id === id ? { ...v, status } : v));
+    } catch (e) { alert('Update failed'); }
+    finally { setUpdating(null); }
+  };
+
+  const assignDriver = async (vehicleId, driverId) => {
+    setUpdating(vehicleId);
+    try {
+      await api.patch(`/admin/vehicles/${vehicleId}`, { assignedDriver: driverId }, { headers });
+      load();
+    } catch (e) { alert(e.response?.data?.message || 'Assign failed'); }
+    finally { setUpdating(null); setAssignModal(null); }
+  };
+
+  const unassignDriver = async (vehicleId) => {
+    setUpdating(vehicleId);
+    try {
+      await api.patch(`/admin/vehicles/${vehicleId}`, { assignedDriver: null }, { headers });
+      load();
+    } catch (e) { alert('Unassign failed'); }
+    finally { setUpdating(null); }
+  };
+
+  const deleteVehicle = async (id) => {
+    if (!confirm('Delete this vehicle permanently?')) return;
+    try {
+      await api.delete(`/admin/vehicles/${id}`, { headers });
+      setVehicles(prev => prev.filter(v => v._id !== id));
+    } catch (e) { alert('Delete failed'); }
+  };
+
+  const activeCount = vehicles.filter(v => v.status === 'active').length;
+  const maintCount = vehicles.filter(v => v.status === 'maintenance').length;
+
+  return (
+    <div>
+      <div className="header">
+        <div className="header-title">
+          <h1>Vehicle & Machinery Fleet</h1>
+          <p>{vehicles.length} vehicles · {activeCount} active · {maintCount} in maintenance</p>
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button className="btn btn-outline" onClick={load}><Icon name="refresh" size={15} /> Refresh</button>
+          <button className="btn" onClick={() => setShowAdd(!showAdd)}><Icon name="plus" size={15} /> Add Vehicle</button>
+        </div>
+      </div>
+
+      {/* Vehicle Type Legend */}
+      <div className="vehicle-legend">
+        {Object.entries(VEHICLE_TYPES).map(([key, { label, emoji, color }]) => (
+          <div key={key} className="vehicle-legend-item">
+            <span className="vehicle-legend-emoji">{emoji}</span>
+            <span style={{ color }}>{label}</span>
+          </div>
+        ))}
+      </div>
+
+      {showAdd && (
+        <div className="card" style={{ marginBottom: 24 }}>
+          <h3 className="card-title">Add New Vehicle / Machinery</h3>
+          <form onSubmit={addVehicle} className="add-form">
+            <div className="form-group">
+              <label>Vehicle ID</label>
+              <input value={form.vehicleId} onChange={e => setForm(p => ({...p, vehicleId: e.target.value}))} placeholder="GCT-007" required />
+            </div>
+            <div className="form-group">
+              <label>Type</label>
+              <select value={form.type} onChange={e => setForm(p => ({...p, type: e.target.value}))}>
+                {Object.entries(VEHICLE_TYPES).map(([key, { label, emoji }]) => (
+                  <option key={key} value={key}>{emoji} {label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Plate Number</label>
+              <input value={form.plateNumber} onChange={e => setForm(p => ({...p, plateNumber: e.target.value}))} placeholder="TN-38-XX-0000" required />
+            </div>
+            <div className="form-group">
+              <label>Capacity</label>
+              <input value={form.capacity} onChange={e => setForm(p => ({...p, capacity: e.target.value}))} placeholder="5 Tonnes" />
+            </div>
+            <div className="form-group">
+              <label>Deployed Area</label>
+              <input value={form.currentArea} onChange={e => setForm(p => ({...p, currentArea: e.target.value}))} placeholder="Peelamedu" />
+            </div>
+            <div className="form-group">
+              <label>Notes</label>
+              <input value={form.notes} onChange={e => setForm(p => ({...p, notes: e.target.value}))} placeholder="Optional notes" />
+            </div>
+            <div style={{ gridColumn: '1/-1', display: 'flex', gap: 10 }}>
+              <button type="submit" className="btn" disabled={adding}>{adding ? 'Adding...' : 'Add Vehicle'}</button>
+              <button type="button" className="btn btn-outline" onClick={() => setShowAdd(false)}>Cancel</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      <div className="card">
+        {loading ? <Spinner /> : (
+          <table>
+            <thead><tr>
+              <th>Vehicle</th><th>Type</th><th>Plate</th><th>Capacity</th><th>Area</th><th>Status</th><th>Assigned Driver</th><th>Fuel</th><th>Actions</th>
+            </tr></thead>
+            <tbody>
+              {vehicles.length === 0 ? (
+                <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: 32 }}>No vehicles registered yet</td></tr>
+              ) : vehicles.map(v => {
+                const vt = VEHICLE_TYPES[v.type] || VEHICLE_TYPES.garbage_truck;
+                const vs = VEHICLE_STATUS[v.status] || VEHICLE_STATUS.inactive;
+                return (
+                  <tr key={v._id}>
+                    <td>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>{v.vehicleId}</div>
+                    </td>
+                    <td>
+                      <div className="vehicle-type-chip" style={{ '--vt-color': vt.color }}>
+                        <span style={{ fontSize: 16 }}>{vt.emoji}</span>
+                        <span>{vt.label}</span>
+                      </div>
+                    </td>
+                    <td style={{ fontFamily: 'monospace', fontSize: 13 }}>{v.plateNumber}</td>
+                    <td style={{ color: 'var(--text-muted)' }}>{v.capacity || '—'}</td>
+                    <td style={{ fontSize: 13, maxWidth: 160 }}>{v.currentArea || '—'}</td>
+                    <td><span className={`badge ${vs.cls}`}>{vs.label}</span></td>
+                    <td>
+                      {v.assignedDriver ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 11, flexShrink: 0 }}>
+                            {v.assignedDriver.name?.[0]?.toUpperCase() || '?'}
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: 13 }}>{v.assignedDriver.name}</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{v.assignedDriver.phone || v.assignedDriver.email}</div>
+                          </div>
+                        </div>
+                      ) : (
+                        <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>Unassigned</span>
+                      )}
+                    </td>
+                    <td>
+                      <div className="fuel-bar-wrap">
+                        <div className="fuel-bar">
+                          <div className="fuel-fill" style={{ width: `${v.fuelLevel ?? 0}%`, background: v.fuelLevel > 50 ? 'var(--primary)' : v.fuelLevel > 20 ? 'var(--accent-amber)' : 'var(--accent-red)' }} />
+                        </div>
+                        <span className="fuel-text">{v.fuelLevel ?? 0}%</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="action-btns">
+                        {v.assignedDriver ? (
+                          <button className="btn btn-sm btn-outline" onClick={() => unassignDriver(v._id)} disabled={updating === v._id} title="Unassign driver">Unassign</button>
+                        ) : (
+                          <button className="btn btn-sm btn-blue" onClick={() => setAssignModal(v)} disabled={updating === v._id}>Assign</button>
+                        )}
+                        {v.status === 'active' && (
+                          <button className="btn btn-sm btn-amber" onClick={() => updateStatus(v._id, 'maintenance')} disabled={updating === v._id}>🔧</button>
+                        )}
+                        {v.status === 'maintenance' && (
+                          <button className="btn btn-sm" onClick={() => updateStatus(v._id, 'active')} disabled={updating === v._id}>✅</button>
+                        )}
+                        {v.status === 'inactive' && (
+                          <button className="btn btn-sm" onClick={() => updateStatus(v._id, 'active')} disabled={updating === v._id}>Activate</button>
+                        )}
+                        <button className="btn btn-sm btn-red" onClick={() => deleteVehicle(v._id)}><Icon name="trash" size={13} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Assign Driver Modal */}
+      {assignModal && (
+        <div className="modal-overlay" onClick={() => setAssignModal(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h3 className="card-title">Assign Driver to Vehicle</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', marginBottom: 16, border: '1px solid var(--border-color)' }}>
+              <span style={{ fontSize: 24 }}>{VEHICLE_TYPES[assignModal.type]?.emoji}</span>
+              <div>
+                <div style={{ fontWeight: 700, color: '#fff' }}>{assignModal.vehicleId}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{VEHICLE_TYPES[assignModal.type]?.label} · {assignModal.plateNumber}</div>
+              </div>
+            </div>
+            <div className="driver-list">
+              {drivers.map(d => (
+                <button key={d._id} className="driver-select-btn" onClick={() => assignDriver(assignModal._id, d._id)}>
+                  <Icon name="drivers" size={16} />
+                  <div>
+                    <div style={{ fontWeight: 600 }}>{d.name}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{d.employeeId || d.email} · {d.zone || 'No zone'}</div>
+                  </div>
+                </button>
+              ))}
+              {drivers.length === 0 && <p style={{ color: 'var(--text-dim)' }}>No drivers registered yet</p>}
+            </div>
+            <button className="btn btn-outline" style={{ width: '100%', marginTop: 12 }} onClick={() => setAssignModal(null)}>Cancel</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Citizens ─────────────────────────────────────────────────────────────────
+function CitizensView({ token }) {
+  const [citizens, setCitizens] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const headers = { Authorization: `Bearer ${token}` };
+
+  useEffect(() => {
+    api.get('/admin/citizens', { headers }).then(r => setCitizens(r.data)).catch(console.error).finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <div>
+      <div className="header">
+        <div className="header-title"><h1>Citizens</h1><p>All registered citizen accounts</p></div>
+      </div>
+      <div className="card">
+        {loading ? <Spinner /> : (
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Area</th><th>Joined</th></tr></thead>
+            <tbody>
+              {citizens.length === 0 ? (
+                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: 32 }}>No citizens registered yet</td></tr>
+              ) : citizens.map(c => (
+                <tr key={c._id}>
+                  <td style={{ fontWeight: 600 }}>{c.name}</td>
+                  <td style={{ color: 'var(--text-muted)' }}>{c.email}</td>
+                  <td style={{ color: 'var(--text-muted)' }}>{c.phone || '—'}</td>
+                  <td>{c.area || '—'}</td>
+                  <td style={{ color: 'var(--text-dim)', fontSize: 13 }}>{new Date(c.createdAt).toLocaleDateString('en-IN')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Routes ───────────────────────────────────────────────────────────────────
 function RoutesView({ token }) {
   const [routes, setRoutes] = useState([]);
@@ -605,7 +919,7 @@ function RoutesView({ token }) {
   return (
     <div>
       <div className="header">
-        <div className="header-title"><h1>Today's Routes</h1><p>All active collection routes for {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p></div>
+        <div className="header-title"><h1>Today&apos;s Routes</h1><p>All active collection routes for {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p></div>
       </div>
       <div className="card">
         {loading ? <Spinner /> : routes.length === 0 ? (
@@ -665,16 +979,21 @@ function SchedulesView({ token }) {
           <table>
             <thead><tr><th>Day</th><th>Zone</th><th>Type</th><th>Time Slot</th><th>Driver</th><th>Status</th></tr></thead>
             <tbody>
-              {schedules.map(s => (
-                <tr key={s._id}>
-                  <td style={{ fontWeight: 600 }}>{days[s.dayOfWeek] ?? s.dayOfWeek}</td>
-                  <td>{s.zone || '—'}</td>
-                  <td>{s.type || '—'}</td>
-                  <td style={{ color: 'var(--text-muted)' }}>{s.timeSlot || '—'}</td>
-                  <td>{s.driver?.name || 'Unassigned'}</td>
-                  <td><Badge status={s.status || 'active'} /></td>
-                </tr>
-              ))}
+              {schedules.map(s => {
+                const dayLabel = Array.isArray(s.dayOfWeek)
+                  ? s.dayOfWeek.map(d => days[d]).join(', ')
+                  : days[s.dayOfWeek] ?? s.dayOfWeek;
+                return (
+                  <tr key={s._id}>
+                    <td style={{ fontWeight: 600 }}>{dayLabel}</td>
+                    <td>{s.zone || '—'}</td>
+                    <td>{s.type || '—'}</td>
+                    <td style={{ color: 'var(--text-muted)' }}>{s.timeSlot || '—'}</td>
+                    <td>{s.driver?.name || 'Unassigned'}</td>
+                    <td><Badge status={s.status || 'active'} /></td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -749,45 +1068,6 @@ function AnalyticsView({ token }) {
   );
 }
 
-// ─── Citizens ─────────────────────────────────────────────────────────────────
-function CitizensView({ token }) {
-  const [citizens, setCitizens] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const headers = { Authorization: `Bearer ${token}` };
-
-  useEffect(() => {
-    api.get('/admin/citizens', { headers }).then(r => setCitizens(r.data)).catch(console.error).finally(() => setLoading(false));
-  }, []);
-
-  return (
-    <div>
-      <div className="header">
-        <div className="header-title"><h1>Citizens</h1><p>All registered citizen accounts</p></div>
-      </div>
-      <div className="card">
-        {loading ? <Spinner /> : (
-          <table>
-            <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Area</th><th>Joined</th></tr></thead>
-            <tbody>
-              {citizens.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: 32 }}>No citizens registered yet</td></tr>
-              ) : citizens.map(c => (
-                <tr key={c._id}>
-                  <td style={{ fontWeight: 600 }}>{c.name}</td>
-                  <td style={{ color: 'var(--text-muted)' }}>{c.email}</td>
-                  <td style={{ color: 'var(--text-muted)' }}>{c.phone || '—'}</td>
-                  <td>{c.area || '—'}</td>
-                  <td style={{ color: 'var(--text-dim)', fontSize: 13 }}>{new Date(c.createdAt).toLocaleDateString('en-IN')}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ─── Sidebar Nav Link ─────────────────────────────────────────────────────────
 function SideLink({ to, icon, label, end }) {
   return (
@@ -833,6 +1113,7 @@ export default function App() {
         <nav>
           <SideLink to="/" icon="dashboard" label="Dashboard" end />
           <SideLink to="/complaints" icon="complaints" label="Complaints" />
+          <SideLink to="/vehicles" icon="vehicles" label="Vehicles" />
           <SideLink to="/drivers" icon="drivers" label="Drivers" />
           <SideLink to="/citizens" icon="users" label="Citizens" />
           <SideLink to="/routes" icon="routes" label="Routes" />
@@ -848,6 +1129,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<DashboardView token={token} />} />
           <Route path="/complaints" element={<ComplaintsView token={token} />} />
+          <Route path="/vehicles" element={<VehiclesView token={token} />} />
           <Route path="/drivers" element={<DriversView token={token} />} />
           <Route path="/citizens" element={<CitizensView token={token} />} />
           <Route path="/routes" element={<RoutesView token={token} />} />

@@ -15,6 +15,7 @@ import scheduleRoutes from './routes/scheduleRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import { setIo } from './controllers/driverController.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
+import User from './models/User.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -74,7 +75,10 @@ io.on('connection', socket => {
   });
 });
 
-connectDb().then(() => {
+import { seedAll } from './seedData.js';
+
+connectDb().then(async () => {
+  await seedAll();
   server.listen(process.env.PORT || 5000, () => {
     console.log(`CleanConnectPlus API running on port ${process.env.PORT || 5000}`);
   });

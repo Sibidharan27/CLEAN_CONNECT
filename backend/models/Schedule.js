@@ -10,7 +10,7 @@ const scheduleSchema = new mongoose.Schema({
   },
   dayOfWeek: [{ type: Number }], // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
   timeSlot: { type: String, default: '7:00 AM - 10:00 AM' },
-  driver: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  driver: { type: mongoose.Schema.Types.ObjectId, ref: 'Driver' },
   vehicleId: String,
   color: { type: String, default: '#2E7D32' },
   icon: { type: String, default: 'trash-can' },

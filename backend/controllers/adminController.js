@@ -4,15 +4,34 @@ import Driver from '../models/Driver.js';
 import Complaint from '../models/Complaint.js';
 import Route from '../models/Route.js';
 import Schedule from '../models/Schedule.js';
+import Vehicle from '../models/Vehicle.js';
+
+// ── Seed default vehicles if none exist ───────────────────────────────────────
+async function seedVehicles() {
+  const count = await Vehicle.countDocuments();
+  if (count > 0) return;
+
+  await Vehicle.insertMany([
+    { vehicleId: 'GCT-001', type: 'garbage_truck', plateNumber: 'TN-38-AB-1234', capacity: '5 Tonnes', status: 'active', currentArea: 'Peelamedu Main Road & PSG Area', fuelLevel: 82 },
+    { vehicleId: 'GCT-002', type: 'garbage_truck', plateNumber: 'TN-38-CD-5678', capacity: '3 Tonnes', status: 'active', currentArea: 'Avinashi Road & Tidel Park Area', fuelLevel: 65 },
+    { vehicleId: 'GCT-003', type: 'jcb',           plateNumber: 'TN-38-EF-9012', capacity: '2 cubic m', status: 'active', currentArea: 'Peelamedu Pudur Dump Site', fuelLevel: 70 },
+    { vehicleId: 'GCT-004', type: 'mini_loader',    plateNumber: 'TN-38-GH-3456', capacity: '1.5 Tonnes', status: 'maintenance', currentArea: 'Peelamedu Narrow Streets', fuelLevel: 45 },
+    { vehicleId: 'GCT-005', type: 'road_sweeper',   plateNumber: 'TN-38-IJ-7890', capacity: '—', status: 'active', currentArea: 'Avinashi Road Stretch', fuelLevel: 90 },
+    { vehicleId: 'GCT-006', type: 'garbage_truck',  plateNumber: 'TN-38-KL-2345', capacity: '5 Tonnes', status: 'inactive', currentArea: 'KG Hospital & Surroundings', fuelLevel: 30 },
+  ]);
+  console.log('Vehicles seeded with Peelamedu fleet');
+}
 
 // ── Dashboard KPIs ────────────────────────────────────────────────────────────
 export async function getStats(req, res, next) {
   try {
+    await seedVehicles();
     const today = new Date().toISOString().split('T')[0];
     const [
       totalComplaints, openComplaints, resolvedComplaints, inProgressComplaints,
       totalCitizens, totalDrivers,
       activeRoutes, completedRoutes,
+      totalVehicles, activeVehicles, maintenanceVehicles,
     ] = await Promise.all([
       Complaint.countDocuments(),
       Complaint.countDocuments({ status: 'open' }),
@@ -22,6 +41,9 @@ export async function getStats(req, res, next) {
       Driver.countDocuments(),
       Route.countDocuments({ date: today, status: 'active' }),
       Route.countDocuments({ date: today, status: 'completed' }),
+      Vehicle.countDocuments(),
+      Vehicle.countDocuments({ status: 'active' }),
+      Vehicle.countDocuments({ status: 'maintenance' }),
     ]);
 
     const resolutionRate = totalComplaints > 0
@@ -55,6 +77,7 @@ export async function getStats(req, res, next) {
       resolutionRate,
       byCategory,
       trend,
+      totalVehicles, activeVehicles, maintenanceVehicles,
     });
   } catch (e) { next(e); }
 }
@@ -82,6 +105,18 @@ export async function getAllComplaints(req, res, next) {
         .limit(parseInt(limit)),
       Complaint.countDocuments(filter),
     ]);
+
+    // Fallback: if any complaint.citizen failed to populate (e.g. legacy User collection), resolve it
+    for (const c of complaints) {
+      if (!c.citizen || !c.citizen.name) {
+        const citizenId = c.citizen?._id || c.citizen;
+        if (citizenId) {
+          const userDoc = await User.findById(citizenId).select('name email phone');
+          if (userDoc) c.citizen = userDoc;
+        }
+      }
+    }
+
     res.json({ complaints, total, page: parseInt(page), totalPages: Math.ceil(total / parseInt(limit)) });
   } catch (e) { next(e); }
 }
@@ -118,6 +153,11 @@ export async function getAllDrivers(req, res, next) {
     const routeMap = {};
     routes.forEach(r => { routeMap[r.driver?.toString()] = r; });
 
+    // Get vehicle assignment info for each driver
+    const vehicles = await Vehicle.find({ assignedDriver: { $ne: null } });
+    const vehicleMap = {};
+    vehicles.forEach(v => { vehicleMap[v.assignedDriver?.toString()] = v; });
+
     const driverData = drivers.map(d => ({
       _id: d._id,
       name: d.name,
@@ -128,6 +168,7 @@ export async function getAllDrivers(req, res, next) {
       zone: d.zone,
       shift: d.shift,
       route: routeMap[d._id.toString()] || null,
+      assignedVehicle: vehicleMap[d._id.toString()] || null,
     }));
     res.json(driverData);
   } catch (e) { next(e); }
@@ -175,5 +216,52 @@ export async function deleteComplaint(req, res, next) {
   try {
     await Complaint.findByIdAndDelete(req.params.id);
     res.json({ message: 'Complaint deleted' });
+  } catch (e) { next(e); }
+}
+
+// ── Vehicle CRUD ──────────────────────────────────────────────────────────────
+
+export async function getAllVehicles(req, res, next) {
+  try {
+    await seedVehicles();
+    const vehicles = await Vehicle.find().populate('assignedDriver', 'name email phone').sort('vehicleId');
+    res.json(vehicles);
+  } catch (e) { next(e); }
+}
+
+export async function createVehicle(req, res, next) {
+  try {
+    const { vehicleId, type, plateNumber, capacity, currentArea, notes } = req.body;
+    if (!vehicleId || !type || !plateNumber) {
+      return res.status(400).json({ message: 'vehicleId, type, and plateNumber are required' });
+    }
+    const exists = await Vehicle.exists({ vehicleId });
+    if (exists) return res.status(409).json({ message: 'Vehicle ID already exists' });
+    const vehicle = await Vehicle.create({ vehicleId, type, plateNumber, capacity, currentArea, notes });
+    res.status(201).json(vehicle);
+  } catch (e) { next(e); }
+}
+
+export async function updateVehicle(req, res, next) {
+  try {
+    const vehicle = await Vehicle.findById(req.params.id);
+    if (!vehicle) return res.status(404).json({ message: 'Vehicle not found' });
+
+    const { status, currentArea, fuelLevel, notes, assignedDriver } = req.body;
+    if (status !== undefined) vehicle.status = status;
+    if (currentArea !== undefined) vehicle.currentArea = currentArea;
+    if (fuelLevel !== undefined) vehicle.fuelLevel = fuelLevel;
+    if (notes !== undefined) vehicle.notes = notes;
+    if (assignedDriver !== undefined) vehicle.assignedDriver = assignedDriver || null;
+
+    await vehicle.save();
+    res.json(await vehicle.populate('assignedDriver', 'name email phone'));
+  } catch (e) { next(e); }
+}
+
+export async function deleteVehicle(req, res, next) {
+  try {
+    await Vehicle.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Vehicle deleted' });
   } catch (e) { next(e); }
 }

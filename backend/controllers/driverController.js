@@ -18,11 +18,13 @@ export async function getDriverRoutes(req, res, next) {
         vehicleId: 'GCT-001',
         date: today,
         stops: [
-          { stopNumber: 1, address: '12, RS Puram, 1st Street', area: 'RS Puram', landmark: 'Near RS Puram Market', latitude: 11.0105, longitude: 76.9638, status: 'completed' },
-          { stopNumber: 2, address: '45, Gandhipuram Main Road', area: 'Gandhipuram', landmark: 'Opposite Central Bus Stand', latitude: 11.0179, longitude: 76.9674, status: 'pending' },
-          { stopNumber: 3, address: '78, Peelamedu, Avinashi Road', area: 'Peelamedu', landmark: 'Near Kovai Airport Junction', latitude: 11.0283, longitude: 77.0237, status: 'pending' },
-          { stopNumber: 4, address: '23, Saibaba Colony, 3rd Street', area: 'Saibaba Colony', landmark: 'Beside Saibaba Temple', latitude: 11.0218, longitude: 76.9551, status: 'pending' },
-          { stopNumber: 5, address: '56, Race Course Road', area: 'Race Course', landmark: 'Near Race Course Roundabout', latitude: 11.0138, longitude: 76.9734, status: 'pending' },
+          { stopNumber: 1, address: 'PSG College Main Gate, Peelamedu',         area: 'Peelamedu', landmark: 'Near PSG Tech Entrance',         latitude: 11.0244, longitude: 77.0028, status: 'completed' },
+          { stopNumber: 2, address: 'Tidel Park Junction, Avinashi Road',       area: 'Peelamedu', landmark: 'Opposite Tidel Park IT Hub',     latitude: 11.0206, longitude: 77.0109, status: 'pending' },
+          { stopNumber: 3, address: 'Fun Republic Mall, Peelamedu',             area: 'Peelamedu', landmark: 'Near Fun Republic Entrance',      latitude: 11.0235, longitude: 77.0142, status: 'pending' },
+          { stopNumber: 4, address: 'GR Damodaran Academy, Peelamedu',          area: 'Peelamedu', landmark: 'Beside GRD School Gate',          latitude: 11.0280, longitude: 77.0070, status: 'pending' },
+          { stopNumber: 5, address: 'Peelamedu Pudur Bus Stop',                 area: 'Peelamedu', landmark: 'Main Road Bus Shelter',            latitude: 11.0260, longitude: 77.0185, status: 'pending' },
+          { stopNumber: 6, address: 'KG Hospital, Peelamedu',                   area: 'Peelamedu', landmark: 'Near KG Hospital Main Entrance',  latitude: 11.0215, longitude: 77.0060, status: 'pending' },
+          { stopNumber: 7, address: 'Texvalley Mall, Avinashi Road',            area: 'Peelamedu', landmark: 'Texvalley Shopping Complex',      latitude: 11.0195, longitude: 77.0222, status: 'pending' },
         ],
       });
     }

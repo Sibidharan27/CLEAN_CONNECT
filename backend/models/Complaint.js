@@ -7,7 +7,7 @@ const timelineEntrySchema = new mongoose.Schema({
 }, { _id: false });
 
 const complaintSchema = new mongoose.Schema({
-  citizen: { type: mongoose.Schema.Types.ObjectId, required: true },
+  citizen: { type: mongoose.Schema.Types.ObjectId, ref: 'Citizen', required: true },
   title: { type: String, trim: true, default: '' },
   category: { type: String, required: true },
   description: { type: String, required: true },
