@@ -265,3 +265,45 @@ export async function deleteVehicle(req, res, next) {
     res.json({ message: 'Vehicle deleted' });
   } catch (e) { next(e); }
 }
+
+// ── Driver Complaint Stats (attended in a time window) ────────────────────────
+export async function getDriverComplaintStats(req, res, next) {
+  try {
+    // ?period=3&unit=months  OR  ?period=1&unit=years
+    const period = parseInt(req.query.period) || 1;
+    const unit   = req.query.unit === 'years' ? 'years' : 'months';
+
+    const since = new Date();
+    if (unit === 'years') {
+      since.setFullYear(since.getFullYear() - period);
+    } else {
+      since.setMonth(since.getMonth() - period);
+    }
+
+    // Count complaints that have an assignedDriver and were resolved/closed
+    // within the time window (using createdAt or updatedAt of the complaint).
+    const pipeline = [
+      {
+        $match: {
+          assignedDriver: { $ne: null },
+          status: { $in: ['resolved', 'closed'] },
+          updatedAt: { $gte: since },
+        },
+      },
+      {
+        $group: {
+          _id: '$assignedDriver',
+          count: { $sum: 1 },
+        },
+      },
+    ];
+
+    const results = await Complaint.aggregate(pipeline);
+
+    // Build a driverId → count map
+    const countMap = {};
+    results.forEach(r => { countMap[r._id.toString()] = r.count; });
+
+    res.json({ countMap, since, period, unit });
+  } catch (e) { next(e); }
+}

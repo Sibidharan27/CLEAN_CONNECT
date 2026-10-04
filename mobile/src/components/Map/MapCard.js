@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors, textStyles, BorderRadius, Spacing, Shadows } from '../../theme';
 
@@ -17,6 +17,9 @@ const MapCard = ({
   centerCoord = null, // { latitude, longitude } — center the map here
 }) => {
   const center = centerCoord || COIMBATORE;
+
+  const validStops = stops.filter(s => s && s.latitude && s.longitude);
+  const routeCoords = validStops.map(s => ({ latitude: s.latitude, longitude: s.longitude }));
 
   const initialRegion = {
     latitude: center.latitude,
@@ -43,6 +46,16 @@ const MapCard = ({
         customMapStyle={mapStyle}
         pointerEvents="none"
       >
+        {/* Route line connecting stops */}
+        {routeCoords.length > 1 && (
+          <Polyline
+            coordinates={routeCoords}
+            strokeColor={Colors.primary}
+            strokeWidth={3}
+            lineDashPattern={[6, 3]}
+          />
+        )}
+
         {/* Stop markers */}
         {stops.map((stop, i) => {
           if (!stop.latitude || !stop.longitude) return null;

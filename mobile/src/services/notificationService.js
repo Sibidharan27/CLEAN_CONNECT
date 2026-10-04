@@ -2,58 +2,74 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { authRequest } from './api';
 
-// ─── Configure foreground notification display ────────────────────────────────
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+// ─── Configure foreground notification display (safe across Expo versions) ───
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+} catch (e) {
+  // Silent fallback for environments where NotificationHandler is restricted
+}
 
 // ─── Permissions ──────────────────────────────────────────────────────────────
 export async function requestNotificationPermissions() {
   try {
-    const { status: existing } = await Notifications.getPermissionsAsync();
+    if (Platform.OS === 'web') return false;
+
+    const { status: existing } = await Notifications.getPermissionsAsync().catch(() => ({ status: 'undetermined' }));
     if (existing === 'granted') return true;
-    const { status } = await Notifications.requestPermissionsAsync();
+
+    const { status } = await Notifications.requestPermissionsAsync({
+      ios: {
+        allowAlert: true,
+        allowBadge: true,
+        allowSound: true,
+      },
+    }).catch(() => ({ status: 'denied' }));
+
     return status === 'granted';
-  } catch (e) {
-    console.warn('Notification permissions error:', e.message);
+  } catch {
+    // Non-fatal error
     return false;
   }
 }
 
 // ─── API calls ────────────────────────────────────────────────────────────────
-export const getNotifications = () => authRequest('/notifications');
-export const getUnreadCount = () => authRequest('/notifications/unread-count');
-export const markRead = (id) => authRequest(`/notifications/${id}/read`, { method: 'PATCH' });
-export const markAllRead = () => authRequest('/notifications/read-all', { method: 'PATCH' });
+export const getNotifications = () => authRequest('/notifications').catch(() => []);
+export const getUnreadCount = () => authRequest('/notifications/unread-count').catch(() => ({ count: 0 }));
+export const markRead = (id) => authRequest(`/notifications/${id}/read`, { method: 'PATCH' }).catch(() => ({}));
+export const markAllRead = () => authRequest('/notifications/read-all', { method: 'PATCH' }).catch(() => ({}));
 
 // ─── Fire a local push notification immediately ───────────────────────────────
 export async function sendLocalNotification(title, body, data = {}) {
   try {
+    if (Platform.OS === 'web') return;
+
     const granted = await requestNotificationPermissions();
-    if (!granted) {
-      console.warn('Notification permission not granted');
-      return;
-    }
+    if (!granted) return;
+
     await Notifications.scheduleNotificationAsync({
       content: {
         title,
         body,
         sound: true,
         data,
-        ...(Platform.OS === 'android' && { channelId: 'default' }),
+        ...(Platform.OS === 'android' && { channelId: 'truck' }),
       },
       trigger: null, // fire immediately
     });
-  } catch (e) {
-    console.warn('Local notification error:', e.message);
+  } catch {
+    // Suppress notification scheduler errors in dev/emulator
   }
 }
 
-// ─── Set up Android notification channel ─────────────────────────────────────
+// ─── Set up Android notification channels ─────────────────────────────────────
 export async function setupAndroidChannel() {
   if (Platform.OS === 'android') {
     try {
@@ -64,6 +80,7 @@ export async function setupAndroidChannel() {
         lightColor: '#2E7D32',
         sound: true,
       });
+
       await Notifications.setNotificationChannelAsync('truck', {
         name: 'Truck Nearby Alerts',
         importance: Notifications.AndroidImportance.MAX,
@@ -71,19 +88,18 @@ export async function setupAndroidChannel() {
         lightColor: '#FFC107',
         sound: true,
       });
-    } catch (e) {
-      console.warn('Android channel setup error:', e.message);
+    } catch {
+      // Channel setup is optional on some Android emulators
     }
   }
 }
 
 // ─── Truck nearby alert (called from LiveTracking when distance updates) ─────
-let lastAlertDistance = null; // prevent spamming
+let lastAlertDistance = null;
 export async function sendTruckNearbyAlert(distanceKm) {
   if (distanceKm === null || distanceKm === undefined) return;
 
   if (distanceKm <= 0.5) {
-    // Only alert once per "approaching" event
     if (lastAlertDistance === null || lastAlertDistance > 0.5) {
       lastAlertDistance = distanceKm;
       await sendLocalNotification(
@@ -102,7 +118,6 @@ export async function sendTruckNearbyAlert(distanceKm) {
       );
     }
   } else {
-    // Reset the alert state when truck moves away
     lastAlertDistance = null;
   }
 }
@@ -119,7 +134,7 @@ export async function sendTestNotification() {
 export async function cancelAllNotifications() {
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
-  } catch (e) {
-    console.warn('Cancel notifications error:', e.message);
+  } catch {
+    // Non-fatal
   }
 }

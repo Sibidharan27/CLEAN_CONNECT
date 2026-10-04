@@ -34,7 +34,9 @@
         "ACCESS_COARSE_LOCATION",
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "WRITE_EXTERNAL_STORAGE",
+        "POST_NOTIFICATIONS",
+        "VIBRATE"
       ],
       "config": {
         "googleMaps": {
@@ -50,6 +52,13 @@
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "CleanConnect+ needs your location to track the garbage truck near your area."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#1B5E20"
         }
       ]
     ],

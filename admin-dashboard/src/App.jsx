@@ -136,18 +136,42 @@ function Spinner() {
 function DashboardView({ token }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
       const res = await api.get('/admin/stats', { headers: { Authorization: `Bearer ${token}` } });
       setStats(res.data);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+    } catch (e) {
+      console.error('Dashboard stats error:', e);
+      setError(e.response?.data?.message || e.message || 'Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
   }, [token]);
 
   useEffect(() => { load(); }, [load]);
 
   if (loading) return <Spinner />;
+
+  if (error) return (
+    <div>
+      <div className="header">
+        <div className="header-title"><h1>System Overview</h1><p>Real-time metrics</p></div>
+        <button className="btn btn-outline" onClick={load}><Icon name="refresh" size={15} /> Retry</button>
+      </div>
+      <div className="card" style={{ textAlign: 'center', padding: 40 }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>⚠️</div>
+        <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--accent-red)', marginBottom: 8 }}>Failed to load dashboard</div>
+        <div style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 20 }}>{error}</div>
+        <button className="btn" onClick={load}><Icon name="refresh" size={15} /> Try Again</button>
+      </div>
+    </div>
+  );
+
+  const s = stats || {};
 
   return (
     <div>
@@ -160,20 +184,20 @@ function DashboardView({ token }) {
       </div>
 
       <div className="stats-grid">
-        <StatCard label="Total Complaints" value={stats?.totalComplaints} sub={`${stats?.openComplaints} open · ${stats?.inProgressComplaints} in progress`} color="var(--accent-amber)" />
-        <StatCard label="Resolved" value={stats?.resolvedComplaints} sub={`${stats?.resolutionRate}% resolution rate`} color="var(--primary)" />
-        <StatCard label="Registered Drivers" value={stats?.totalDrivers} sub={`${stats?.activeRoutes} routes active today`} color="var(--accent-blue)" />
-        <StatCard label="Fleet Vehicles" value={stats?.totalVehicles} sub={`${stats?.activeVehicles} active · ${stats?.maintenanceVehicles} in maintenance`} color="var(--accent-purple)" />
+        <StatCard label="Total Complaints" value={s.totalComplaints ?? 0} sub={`${s.openComplaints ?? 0} open · ${s.inProgressComplaints ?? 0} in progress`} color="var(--accent-amber)" />
+        <StatCard label="Resolved" value={s.resolvedComplaints ?? 0} sub={`${s.resolutionRate ?? 0}% resolution rate`} color="var(--primary)" />
+        <StatCard label="Registered Drivers" value={s.totalDrivers ?? 0} sub={`${s.activeRoutes ?? 0} routes active today`} color="var(--accent-blue)" />
+        <StatCard label="Fleet Vehicles" value={s.totalVehicles ?? 0} sub={`${s.activeVehicles ?? 0} active · ${s.maintenanceVehicles ?? 0} in maintenance`} color="var(--accent-purple)" />
       </div>
 
       {/* Category Breakdown */}
       <div className="two-col">
         <div className="card">
           <h3 className="card-title">Complaints by Category</h3>
-          {stats?.byCategory?.length > 0 ? (
+          {s.byCategory?.length > 0 ? (
             <div className="bar-list">
-              {stats.byCategory.map(c => {
-                const pct = Math.round((c.count / stats.totalComplaints) * 100);
+              {s.byCategory.map(c => {
+                const pct = s.totalComplaints > 0 ? Math.round((c.count / s.totalComplaints) * 100) : 0;
                 return (
                   <div key={c._id} className="bar-item">
                     <div className="bar-label"><span>{c._id || 'Uncategorised'}</span><span>{c.count}</span></div>
@@ -188,10 +212,10 @@ function DashboardView({ token }) {
         {/* Trend */}
         <div className="card">
           <h3 className="card-title">7-Day Complaint Trend</h3>
-          {stats?.trend?.length > 0 ? (
+          {s.trend?.length > 0 ? (
             <div className="trend-chart">
-              {stats.trend.map(t => {
-                const maxVal = Math.max(...stats.trend.map(x => x.count));
+              {s.trend.map(t => {
+                const maxVal = Math.max(...s.trend.map(x => x.count), 1);
                 const h = Math.max(6, Math.round((t.count / maxVal) * 100));
                 return (
                   <div key={t._id} className="trend-bar-wrap" title={`${t._id}: ${t.count}`}>
@@ -511,7 +535,30 @@ function DriversView({ token }) {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', vehicleId: '', employeeId: '', zone: '', shift: '' });
   const [adding, setAdding] = useState(false);
+
+  // — Complaint attendance stats —
+  const [statPeriod, setStatPeriod] = useState(3);
+  const [statUnit, setStatUnit]     = useState('months');
+  const [countMap, setCountMap]     = useState({});
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [maxCount, setMaxCount]     = useState(1);
+
   const headers = { Authorization: `Bearer ${token}` };
+
+  const loadStats = useCallback(async (period, unit) => {
+    setStatsLoading(true);
+    try {
+      const res = await api.get('/admin/drivers/complaint-stats', {
+        headers,
+        params: { period, unit },
+      });
+      const map = res.data.countMap || {};
+      setCountMap(map);
+      const vals = Object.values(map);
+      setMaxCount(vals.length > 0 ? Math.max(...vals) : 1);
+    } catch (e) { console.error('Stats load failed', e); }
+    finally { setStatsLoading(false); }
+  }, [token]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -523,6 +570,7 @@ function DriversView({ token }) {
   }, [token]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadStats(statPeriod, statUnit); }, [loadStats, statPeriod, statUnit]);
 
   const addDriver = async (e) => {
     e.preventDefault();
@@ -536,6 +584,8 @@ function DriversView({ token }) {
       alert(err.response?.data?.message || 'Failed to add driver');
     } finally { setAdding(false); }
   };
+
+  const periodOptions = statUnit === 'months' ? [1, 2, 3, 6, 9, 12, 18, 24] : [1, 2, 3, 5];
 
   return (
     <div>
@@ -565,19 +615,73 @@ function DriversView({ token }) {
         </div>
       )}
 
+      {/* — Complaints Attended Period Selector — */}
+      <div className="card" style={{ marginBottom: 20, padding: '14px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+            📋 Complaints Attended In:
+          </div>
+
+          <select
+            className="filter-select"
+            style={{ minWidth: 80 }}
+            value={statPeriod}
+            onChange={e => setStatPeriod(parseInt(e.target.value))}
+          >
+            {periodOptions.map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+
+          <div style={{ display: 'flex', background: 'var(--bg-surface)', borderRadius: 8, border: '1px solid var(--border-color)', overflow: 'hidden' }}>
+            {['months', 'years'].map(u => (
+              <button
+                key={u}
+                onClick={() => { setStatUnit(u); setStatPeriod(u === 'months' ? 3 : 1); }}
+                style={{
+                  padding: '6px 14px', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer',
+                  background: statUnit === u ? 'var(--primary)' : 'transparent',
+                  color: statUnit === u ? '#fff' : 'var(--text-dim)',
+                  transition: 'all .2s',
+                }}
+              >
+                {u.charAt(0).toUpperCase() + u.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          {statsLoading && <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>Updating…</span>}
+          {!statsLoading && (
+            <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>
+              Resolved / closed complaints per driver · last {statPeriod} {statUnit}
+            </span>
+          )}
+        </div>
+      </div>
+
       <div className="card">
         {loading ? <Spinner /> : (
           <table>
             <thead><tr>
-              <th>Driver</th><th>Employee ID</th><th>Assigned Vehicle</th><th>Zone</th><th>Shift</th><th>Today's Route</th><th>Stops</th>
+              <th>Driver</th><th>Employee ID</th><th>Assigned Vehicle</th><th>Zone</th><th>Shift</th><th>Today&apos;s Route</th><th>Stops</th>
+              <th style={{ whiteSpace: 'nowrap' }}>
+                Complaints Attended
+                <span style={{ display: 'block', fontSize: 10, fontWeight: 400, color: 'var(--text-dim)', marginTop: 2 }}>
+                  Last {statPeriod} {statUnit}
+                </span>
+              </th>
             </tr></thead>
             <tbody>
               {drivers.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: 32 }}>No drivers registered yet</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: 32 }}>No drivers registered yet</td></tr>
               ) : drivers.map(d => {
-                const done = d.route?.stops?.filter(s => s.status === 'completed').length || 0;
+                const done  = d.route?.stops?.filter(s => s.status === 'completed').length || 0;
                 const total = d.route?.stops?.length || 0;
-                const veh = d.assignedVehicle;
+                const veh   = d.assignedVehicle;
+                const attended = countMap[d._id.toString()] || 0;
+                const barPct   = maxCount > 0 ? Math.round((attended / maxCount) * 100) : 0;
+                const badgeCls = attended >= 10 ? 'badge-resolved'
+                               : attended >= 5  ? 'badge-in_progress'
+                               : attended >= 1  ? 'badge-blue'
+                               : 'badge-dim';
                 return (
                   <tr key={d._id}>
                     <td>
@@ -605,6 +709,33 @@ function DriversView({ token }) {
                           <div className="mini-bar"><div className="mini-fill" style={{ width: `${total > 0 ? (done/total)*100 : 0}%` }} /></div>
                         </div>
                       ) : '—'}
+                    </td>
+
+                    {/* — Complaints Attended column — */}
+                    <td>
+                      {statsLoading ? (
+                        <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>…</span>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 90 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span className={`badge ${badgeCls}`} style={{ fontSize: 13, fontWeight: 700, minWidth: 32, textAlign: 'center' }}>
+                              {attended}
+                            </span>
+                            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{attended === 1 ? 'resolved' : 'resolved'}</span>
+                          </div>
+                          <div className="mini-bar" style={{ width: 80 }}>
+                            <div
+                              className="mini-fill"
+                              style={{
+                                width: `${barPct}%`,
+                                background: attended >= 10 ? 'var(--primary)'
+                                          : attended >= 5  ? 'var(--accent-amber)'
+                                          : 'var(--accent-blue)',
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );
@@ -762,11 +893,11 @@ function VehiclesView({ token }) {
         {loading ? <Spinner /> : (
           <table>
             <thead><tr>
-              <th>Vehicle</th><th>Type</th><th>Plate</th><th>Capacity</th><th>Area</th><th>Status</th><th>Assigned Driver</th><th>Fuel</th><th>Actions</th>
+              <th>Vehicle</th><th>Type</th><th>Plate</th><th>Capacity</th><th>Area</th><th>Status</th><th>Assigned Driver</th><th>Actions</th>
             </tr></thead>
             <tbody>
               {vehicles.length === 0 ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: 32 }}>No vehicles registered yet</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: 32 }}>No vehicles registered yet</td></tr>
               ) : vehicles.map(v => {
                 const vt = VEHICLE_TYPES[v.type] || VEHICLE_TYPES.garbage_truck;
                 const vs = VEHICLE_STATUS[v.status] || VEHICLE_STATUS.inactive;
@@ -799,14 +930,6 @@ function VehiclesView({ token }) {
                       ) : (
                         <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>Unassigned</span>
                       )}
-                    </td>
-                    <td>
-                      <div className="fuel-bar-wrap">
-                        <div className="fuel-bar">
-                          <div className="fuel-fill" style={{ width: `${v.fuelLevel ?? 0}%`, background: v.fuelLevel > 50 ? 'var(--primary)' : v.fuelLevel > 20 ? 'var(--accent-amber)' : 'var(--accent-red)' }} />
-                        </div>
-                        <span className="fuel-text">{v.fuelLevel ?? 0}%</span>
-                      </div>
                     </td>
                     <td>
                       <div className="action-btns">
@@ -955,119 +1078,6 @@ function RoutesView({ token }) {
   );
 }
 
-// ─── Schedules ────────────────────────────────────────────────────────────────
-function SchedulesView({ token }) {
-  const [schedules, setSchedules] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const headers = { Authorization: `Bearer ${token}` };
-
-  useEffect(() => {
-    api.get('/admin/schedules', { headers }).then(r => setSchedules(r.data)).catch(console.error).finally(() => setLoading(false));
-  }, []);
-
-  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-
-  return (
-    <div>
-      <div className="header">
-        <div className="header-title"><h1>Collection Schedules</h1><p>Weekly waste collection timetable by zone</p></div>
-      </div>
-      <div className="card">
-        {loading ? <Spinner /> : schedules.length === 0 ? (
-          <p className="empty-msg">No schedules configured yet. Schedules are created in the database by the admin.</p>
-        ) : (
-          <table>
-            <thead><tr><th>Day</th><th>Zone</th><th>Type</th><th>Time Slot</th><th>Driver</th><th>Status</th></tr></thead>
-            <tbody>
-              {schedules.map(s => {
-                const dayLabel = Array.isArray(s.dayOfWeek)
-                  ? s.dayOfWeek.map(d => days[d]).join(', ')
-                  : days[s.dayOfWeek] ?? s.dayOfWeek;
-                return (
-                  <tr key={s._id}>
-                    <td style={{ fontWeight: 600 }}>{dayLabel}</td>
-                    <td>{s.zone || '—'}</td>
-                    <td>{s.type || '—'}</td>
-                    <td style={{ color: 'var(--text-muted)' }}>{s.timeSlot || '—'}</td>
-                    <td>{s.driver?.name || 'Unassigned'}</td>
-                    <td><Badge status={s.status || 'active'} /></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Analytics ────────────────────────────────────────────────────────────────
-function AnalyticsView({ token }) {
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const headers = { Authorization: `Bearer ${token}` };
-
-  useEffect(() => {
-    api.get('/admin/stats', { headers }).then(r => setStats(r.data)).catch(console.error).finally(() => setLoading(false));
-  }, []);
-
-  if (loading) return <Spinner />;
-
-  const total = stats?.totalComplaints || 0;
-
-  return (
-    <div>
-      <div className="header">
-        <div className="header-title"><h1>Analytics</h1><p>System performance and complaint insights</p></div>
-      </div>
-      <div className="stats-grid">
-        <StatCard label="Resolution Rate" value={`${stats?.resolutionRate || 0}%`} sub="Complaints resolved" color="var(--primary)" />
-        <StatCard label="Open Complaints" value={stats?.openComplaints} sub="Awaiting action" color="var(--accent-amber)" />
-        <StatCard label="In Progress" value={stats?.inProgressComplaints} sub="Being handled" color="var(--accent-blue)" />
-        <StatCard label="Completed Routes" value={stats?.completedRoutes} sub="Today" color="var(--accent-purple)" />
-      </div>
-      <div className="two-col">
-        <div className="card">
-          <h3 className="card-title">Category Breakdown</h3>
-          {stats?.byCategory?.length > 0 ? (
-            <div className="bar-list">
-              {stats.byCategory.map(c => {
-                const pct = total > 0 ? Math.round((c.count / total) * 100) : 0;
-                return (
-                  <div key={c._id} className="bar-item">
-                    <div className="bar-label"><span>{c._id || 'Other'}</span><span style={{ color: 'var(--primary)' }}>{pct}%</span></div>
-                    <div className="bar-track"><div className="bar-fill" style={{ width: `${pct}%` }} /></div>
-                    <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{c.count} complaint{c.count !== 1 ? 's' : ''}</div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : <p className="empty-msg">No data yet</p>}
-        </div>
-        <div className="card">
-          <h3 className="card-title">7-Day Trend</h3>
-          {stats?.trend?.length > 0 ? (
-            <div className="trend-chart">
-              {stats.trend.map(t => {
-                const maxVal = Math.max(...stats.trend.map(x => x.count), 1);
-                const h = Math.max(6, Math.round((t.count / maxVal) * 100));
-                return (
-                  <div key={t._id} className="trend-bar-wrap">
-                    <div className="trend-count">{t.count}</div>
-                    <div className="trend-bar" style={{ height: `${h}%` }} />
-                    <div className="trend-day">{new Date(t._id).toLocaleDateString('en-IN', { weekday: 'short' })}</div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : <p className="empty-msg">No trend data yet</p>}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Sidebar Nav Link ─────────────────────────────────────────────────────────
 function SideLink({ to, icon, label, end }) {
   return (
@@ -1117,8 +1127,6 @@ export default function App() {
           <SideLink to="/drivers" icon="drivers" label="Drivers" />
           <SideLink to="/citizens" icon="users" label="Citizens" />
           <SideLink to="/routes" icon="routes" label="Routes" />
-          <SideLink to="/schedules" icon="schedules" label="Schedules" />
-          <SideLink to="/analytics" icon="analytics" label="Analytics" />
         </nav>
         <button className="nav-link logout-btn" onClick={handleLogout} style={{ marginTop: 'auto', cursor: 'pointer', border: 'none', background: 'none', textAlign: 'left', width: '100%' }}>
           <Icon name="logout" size={18} />
@@ -1133,8 +1141,6 @@ export default function App() {
           <Route path="/drivers" element={<DriversView token={token} />} />
           <Route path="/citizens" element={<CitizensView token={token} />} />
           <Route path="/routes" element={<RoutesView token={token} />} />
-          <Route path="/schedules" element={<SchedulesView token={token} />} />
-          <Route path="/analytics" element={<AnalyticsView token={token} />} />
         </Routes>
       </main>
     </div>

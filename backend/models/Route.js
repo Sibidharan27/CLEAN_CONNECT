@@ -8,6 +8,7 @@ const routeSchema = new mongoose.Schema({
     stopNumber: Number,
     address: String,
     area: String,
+    street: String,        // actual street name the stop is on
     landmark: String,
     latitude: Number,
     longitude: Number,

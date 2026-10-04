@@ -4,6 +4,7 @@ import {
   getStats, getAllComplaints, updateComplaint, deleteComplaint,
   getAllDrivers, getAllCitizens, getAllRoutes, getAllSchedules, createDriver,
   getAllVehicles, createVehicle, updateVehicle, deleteVehicle,
+  getDriverComplaintStats,
 } from '../controllers/adminController.js';
 
 const router = Router();
@@ -17,6 +18,7 @@ router.patch('/complaints/:id', updateComplaint);
 router.delete('/complaints/:id', deleteComplaint);
 router.get('/drivers', getAllDrivers);
 router.post('/drivers', createDriver);
+router.get('/drivers/complaint-stats', getDriverComplaintStats);
 router.get('/citizens', getAllCitizens);
 router.get('/routes', getAllRoutes);
 router.get('/schedules', getAllSchedules);

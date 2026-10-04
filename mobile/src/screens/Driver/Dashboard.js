@@ -1,11 +1,12 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Animated, RefreshControl, Alert,
+  Animated, RefreshControl, Alert, ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Colors, textStyles, BorderRadius, Spacing, Shadows } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation } from '../../context/LocationContext';
@@ -31,67 +32,130 @@ const StatCard = ({ icon, value, label, color, bg }) => {
 const DriverDashboard = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
-  const { startWatching, stopWatching } = useLocation();
+  const { startWatching, stopWatching, getCurrentLocation } = useLocation();
 
   const [routeData, setRouteData] = useState(null);
   const [stats, setStats] = useState({ completed: 0, remaining: 0, totalStops: 0, routeStatus: 'pending' });
   const [isRouteActive, setIsRouteActive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [starting, setStarting] = useState(false);
 
   const progressAnim = useRef(new Animated.Value(0)).current;
 
   const loadData = useCallback(async () => {
     try {
       const [statsData, routeRes] = await Promise.allSettled([getDriverStats(), getDriverRoutes()]);
-      if (statsData.status === 'fulfilled') {
+      if (statsData.status === 'fulfilled' && statsData.value) {
         setStats(statsData.value);
         setIsRouteActive(statsData.value.routeStatus === 'active');
       }
-      if (routeRes.status === 'fulfilled') setRouteData(routeRes.value);
+      if (routeRes.status === 'fulfilled' && routeRes.value) {
+        setRouteData(routeRes.value);
+        if (routeRes.value.status === 'active') {
+          setIsRouteActive(true);
+        }
+      }
     } catch (e) {
-      console.warn('Driver Dashboard error:', e.message);
+      console.warn('Driver Dashboard load error:', e.message);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
+
   useEffect(() => {
-    loadData();
     if (user?._id || user?.id) joinDriverRoom(user._id || user.id);
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     const progress = stats.totalStops > 0 ? stats.completed / stats.totalStops : 0;
-    Animated.timing(progressAnim, { toValue: progress, duration: 1200, useNativeDriver: false }).start();
+    Animated.timing(progressAnim, { toValue: progress, duration: 1000, useNativeDriver: false }).start();
   }, [stats]);
 
   const progressWidth = progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
   const progress = stats.totalStops > 0 ? stats.completed / stats.totalStops : 0;
 
   const handleStartRoute = async () => {
-    if (!routeData?._id) { Alert.alert('No Route', 'No route assigned for today.'); return; }
+    setStarting(true);
     try {
-      await startRoute(routeData._id);
+      let rId = routeData?._id;
+      if (!rId) {
+        const fetched = await getDriverRoutes();
+        if (fetched?._id) {
+          rId = fetched._id;
+          setRouteData(fetched);
+        }
+      }
+
+      await startRoute(rId || 'today');
       setIsRouteActive(true);
+      setStats(prev => ({ ...prev, routeStatus: 'active' }));
+
+      // Broadcast first location immediately
+      getCurrentLocation().then(async (loc) => {
+        if (loc) {
+          broadcastDriverLocation('GCT-001', {
+            latitude: loc.latitude,
+            longitude: loc.longitude,
+            heading: loc.heading || 0,
+            speed: loc.speed || 0,
+          });
+          try {
+            await postDriverLocation(loc.latitude, loc.longitude, 'GCT-001', loc.heading || 0, loc.speed || 0);
+          } catch {}
+        }
+      }).catch(() => {});
+
+      // Begin continuous watch
       startWatching(async (loc) => {
-        broadcastDriverLocation('GCT-001', { latitude: loc.latitude, longitude: loc.longitude, heading: loc.heading, speed: loc.speed });
-        try { await postDriverLocation(loc.latitude, loc.longitude, 'GCT-001', loc.heading, loc.speed); } catch {}
+        broadcastDriverLocation('GCT-001', {
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          heading: loc.heading || 0,
+          speed: loc.speed || 0,
+        });
+        try {
+          await postDriverLocation(loc.latitude, loc.longitude, 'GCT-001', loc.heading || 0, loc.speed || 0);
+        } catch {}
       });
-      Alert.alert('Route Started! 🚛', 'Your location is now being broadcast to citizens tracking the truck.');
+
+      Alert.alert(
+        'Route Started! 🚛',
+        'Your vehicle GPS is now broadcasting to citizens in real-time.',
+        [
+          { text: 'Stay Here', style: 'cancel' },
+          {
+            text: 'Open Navigation 🚀',
+            onPress: () => navigation.navigate('LiveNavigation'),
+          },
+        ]
+      );
     } catch (e) {
-      Alert.alert('Error', e.message || 'Failed to start route');
+      Alert.alert('Notice', e.message || 'Could not start route. Please check your connection and try again.');
+    } finally {
+      setStarting(false);
     }
   };
 
   const handleStopRoute = () => {
-    Alert.alert('Stop Route?', 'Are you sure you want to end today\'s route?', [
+    Alert.alert('Stop Route?', 'Are you sure you want to pause today\'s collection run?', [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Stop Route', style: 'destructive',
-        onPress: () => { setIsRouteActive(false); stopWatching(); }
-      }
+        text: 'Pause Route',
+        style: 'destructive',
+        onPress: () => {
+          setIsRouteActive(false);
+          stopWatching();
+          setStats(prev => ({ ...prev, routeStatus: 'pending' }));
+        },
+      },
     ]);
   };
 
@@ -106,14 +170,17 @@ const DriverDashboard = ({ navigation }) => {
     );
   };
 
-  const onRefresh = () => { setRefreshing(true); loadData(); };
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadData();
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#fff']} />}
+        contentContainerStyle={{ paddingBottom: 110 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />}
       >
         {/* Header */}
         <LinearGradient colors={['#0D47A1', '#1565C0', '#1976D2']} style={styles.header}>
@@ -156,7 +223,9 @@ const DriverDashboard = ({ navigation }) => {
                   color={isRouteActive ? Colors.primary : Colors.textTertiary}
                 />
                 <View style={{ marginLeft: 10 }}>
-                  <Text style={styles.statusTitle}>{isRouteActive ? 'Route In Progress' : 'Ready to Start'}</Text>
+                  <Text style={styles.statusTitle}>
+                    {isRouteActive ? 'Route In Progress' : 'Ready to Start'}
+                  </Text>
                   <Text style={styles.statusSubtitle}>Vehicle: {routeData?.vehicleId || 'GCT-001'}</Text>
                 </View>
               </View>
@@ -171,7 +240,7 @@ const DriverDashboard = ({ navigation }) => {
                 <Animated.View style={[styles.progressBarFill, { width: progressWidth }]} />
               </View>
               <Text style={styles.progressSubtitle}>
-                {loading ? 'Loading...' : `${stats.completed} of ${stats.totalStops} stops completed`}
+                {loading ? 'Loading...' : `${stats.completed} of ${stats.totalStops || (routeData?.stops?.length || 0)} stops completed`}
               </Text>
             </View>
           </View>
@@ -182,7 +251,7 @@ const DriverDashboard = ({ navigation }) => {
           <View style={styles.statsRow}>
             <StatCard icon="map-marker-check" value={stats.completed} label="Done" color={Colors.success} bg={Colors.successSurface} />
             <StatCard icon="map-marker-outline" value={stats.remaining} label="Remaining" color={Colors.info} bg={Colors.infoSurface} />
-            <StatCard icon="road-variant" value={stats.totalStops} label="Total" color={Colors.warning} bg={Colors.warningSurface} />
+            <StatCard icon="road-variant" value={stats.totalStops || (routeData?.stops?.length || 0)} label="Total Stops" color={Colors.warning} bg={Colors.warningSurface} />
           </View>
 
           {/* GPS Status indicator */}
@@ -190,7 +259,7 @@ const DriverDashboard = ({ navigation }) => {
             <View style={[styles.gpsBroadcastCard, Shadows.sm]}>
               <View style={styles.gpsLiveDot} />
               <MaterialCommunityIcons name="crosshairs-gps" size={18} color={Colors.success} />
-              <Text style={styles.gpsBroadcastText}>Broadcasting your location to citizens</Text>
+              <Text style={styles.gpsBroadcastText}>GPS Live • Broadcasting street location to citizens</Text>
             </View>
           )}
 
@@ -198,14 +267,24 @@ const DriverDashboard = ({ navigation }) => {
           <View style={styles.actionRow}>
             {isRouteActive ? (
               <TouchableOpacity style={[styles.stopBtn, Shadows.md]} onPress={handleStopRoute}>
-                <MaterialCommunityIcons name="stop-circle-outline" size={22} color={Colors.danger} />
-                <Text style={styles.stopBtnText}>Stop Route</Text>
+                <MaterialCommunityIcons name="pause-circle-outline" size={22} color={Colors.danger} />
+                <Text style={styles.stopBtnText}>Pause Route</Text>
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity style={[styles.startBtn, Shadows.primary]} onPress={handleStartRoute}>
+              <TouchableOpacity
+                style={[styles.startBtn, Shadows.primary]}
+                onPress={handleStartRoute}
+                disabled={starting}
+              >
                 <LinearGradient colors={Colors.gradientPrimary} style={styles.startBtnGradient}>
-                  <MaterialCommunityIcons name="play-circle-outline" size={22} color="#fff" />
-                  <Text style={styles.startBtnText}>Start Today's Route</Text>
+                  {starting ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <MaterialCommunityIcons name="play-circle-outline" size={22} color="#fff" />
+                      <Text style={styles.startBtnText}>Start Today's Route</Text>
+                    </>
+                  )}
                 </LinearGradient>
               </TouchableOpacity>
             )}
@@ -225,7 +304,7 @@ const DriverDashboard = ({ navigation }) => {
                 <MaterialCommunityIcons name="navigation-variant" size={22} color="#1565C0" />
               </View>
               <Text style={styles.quickNavTitle}>Live Navigation</Text>
-              <Text style={styles.quickNavSub}>Navigate stops</Text>
+              <Text style={styles.quickNavSub}>Street GPS & Stops</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.quickNavCard, Shadows.sm]}
@@ -253,9 +332,9 @@ const DriverDashboard = ({ navigation }) => {
           <View style={[styles.workSummary, Shadows.sm]}>
             <Text style={styles.sectionTitle}>Today's Summary</Text>
             {[
-              { label: 'Route Status', value: stats.routeStatus === 'active' ? 'In Progress' : stats.routeStatus === 'completed' ? 'Completed' : 'Not Started', icon: 'truck', color: Colors.info },
-              { label: 'Completed Stops', value: `${stats.completed}/${stats.totalStops}`, icon: 'map-marker-multiple-outline', color: Colors.primary },
-              { label: 'GPS Broadcast', value: isRouteActive ? 'Active' : 'Off', icon: 'crosshairs-gps', color: isRouteActive ? Colors.success : Colors.textTertiary },
+              { label: 'Route Status', value: isRouteActive ? 'In Progress (Active)' : stats.routeStatus === 'completed' ? 'Completed' : 'Ready to Start', icon: 'truck', color: isRouteActive ? Colors.success : Colors.info },
+              { label: 'Completed Stops', value: `${stats.completed}/${stats.totalStops || (routeData?.stops?.length || 0)}`, icon: 'map-marker-multiple-outline', color: Colors.primary },
+              { label: 'GPS Broadcast', value: isRouteActive ? 'Active (Live)' : 'Off', icon: 'crosshairs-gps', color: isRouteActive ? Colors.success : Colors.textTertiary },
             ].map(s => (
               <View key={s.label} style={styles.summaryRow}>
                 <View style={[styles.summaryIconBg, { backgroundColor: s.color + '15' }]}>
@@ -307,12 +386,12 @@ const styles = StyleSheet.create({
   gpsLiveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.success },
   gpsBroadcastText: { ...textStyles.label, color: Colors.success, flex: 1 },
   actionRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.base },
-  startBtn: { flex: 1, borderRadius: BorderRadius.lg, overflow: 'hidden' },
+  startBtn: { flex: 1, borderRadius: BorderRadius.lg, overflow: 'hidden', minHeight: 48 },
   startBtnGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: Spacing.md },
   startBtnText: { ...textStyles.button, color: '#fff' },
-  stopBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: Colors.dangerSurface, borderRadius: BorderRadius.lg, padding: Spacing.md, borderWidth: 1.5, borderColor: Colors.danger + '40' },
+  stopBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: Colors.dangerSurface, borderRadius: BorderRadius.lg, padding: Spacing.md, borderWidth: 1.5, borderColor: Colors.danger + '40', minHeight: 48 },
   stopBtnText: { ...textStyles.button, color: Colors.danger },
-  routeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: Colors.infoSurface, borderRadius: BorderRadius.lg, padding: Spacing.md, paddingHorizontal: Spacing.lg, borderWidth: 1.5, borderColor: Colors.info + '30' },
+  routeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: Colors.infoSurface, borderRadius: BorderRadius.lg, padding: Spacing.md, paddingHorizontal: Spacing.lg, borderWidth: 1.5, borderColor: Colors.info + '30', minHeight: 48 },
   routeBtnText: { ...textStyles.label, color: Colors.info },
   quickNavRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.base },
   quickNavCard: { flex: 1, backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.md, alignItems: 'center' },

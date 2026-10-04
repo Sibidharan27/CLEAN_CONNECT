@@ -283,20 +283,39 @@ const AssignedRoutes = ({ navigation }) => {
           <View style={styles.mapContainer}>
             <MapCard
               title="Today's Route"
-              subtitle={`${stops.length} stops`}
+              subtitle={`${stops.length} street stops`}
               height={160}
               stops={stops}
               onPress={() => navigation.navigate('LiveNavigation')}
             />
-            <TouchableOpacity
-              style={[styles.navigateBtn, Shadows.primary]}
-              onPress={() => navigation.navigate('LiveNavigation')}
-            >
-              <LinearGradient colors={Colors.gradientPrimary} style={styles.navigateBtnGradient}>
-                <MaterialCommunityIcons name="navigation-variant" size={18} color="#fff" />
-                <Text style={styles.navigateBtnText}>Start Navigation</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+            <View style={styles.navBtnRow}>
+              {routeData?.status !== 'active' && (
+                <TouchableOpacity
+                  style={[styles.startRouteBtn, Shadows.md]}
+                  onPress={async () => {
+                    try {
+                      const res = await startRoute(routeData?._id || 'today');
+                      if (res) setRouteData(res);
+                      Alert.alert('Route Started! 🚛', 'Your route is now active and broadcasting GPS location.');
+                    } catch (e) {
+                      Alert.alert('Notice', e.message || 'Could not start route.');
+                    }
+                  }}
+                >
+                  <MaterialCommunityIcons name="play-circle" size={18} color="#fff" />
+                  <Text style={styles.startRouteBtnText}>Start Route</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={[styles.navigateBtn, Shadows.primary, routeData?.status !== 'active' && { flex: 1.2 }]}
+                onPress={() => navigation.navigate('LiveNavigation')}
+              >
+                <LinearGradient colors={Colors.gradientPrimary} style={styles.navigateBtnGradient}>
+                  <MaterialCommunityIcons name="navigation-variant" size={18} color="#fff" />
+                  <Text style={styles.navigateBtnText}>Live Navigation</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Progress */}
@@ -664,7 +683,13 @@ const styles = StyleSheet.create({
 
   // ─── Route tab ──
   mapContainer: { marginHorizontal: Spacing.base, marginBottom: Spacing.sm },
-  navigateBtn: { marginTop: Spacing.sm, borderRadius: BorderRadius.lg, overflow: 'hidden' },
+  navBtnRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm },
+  startRouteBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: '#1565C0', borderRadius: BorderRadius.lg, padding: Spacing.md,
+  },
+  startRouteBtnText: { ...textStyles.button, color: '#fff' },
+  navigateBtn: { flex: 1, borderRadius: BorderRadius.lg, overflow: 'hidden' },
   navigateBtnGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: Spacing.md },
   navigateBtnText: { ...textStyles.button, color: '#fff' },
   progressContainer: { paddingHorizontal: Spacing.base, paddingBottom: Spacing.sm },
