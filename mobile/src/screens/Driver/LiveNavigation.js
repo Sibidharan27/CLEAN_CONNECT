@@ -111,7 +111,8 @@ const LiveNavigation = ({ navigation }) => {
   }, [stops]);
 
   const currentStop = stops[currentStopIndex] || null;
-  const nextStop = stops[currentStopIndex + 1] || null;
+  // Find the actual next PENDING stop (not just index+1, which could be skipped/completed)
+  const nextStop = stops.find((s, i) => i > currentStopIndex && s.status !== 'completed') || null;
   const completedCount = stops.filter(s => s.status === 'completed').length;
 
   const handleStartTrip = async () => {
@@ -157,18 +158,28 @@ const LiveNavigation = ({ navigation }) => {
           setCompleting(true);
           try {
             const updated = await completeStop(routeData._id, currentStop._id);
-            const updatedStops = Array.isArray(updated?.stops) ? updated.stops : stops.map(s =>
-              s._id === currentStop._id ? { ...s, status: 'completed', completedAt: new Date().toISOString() } : s
-            );
+            // Always use the full server response if available, otherwise optimistically update
+            const updatedStops = (Array.isArray(updated?.stops) && updated.stops.length > 0)
+              ? updated.stops
+              : stops.map(s =>
+                  s._id === currentStop._id
+                    ? { ...s, status: 'completed', completedAt: new Date().toISOString() }
+                    : s
+                );
             setStops(updatedStops);
             if (updated?.stops) setRouteData(updated);
 
-            // Move to next stop
-            const nextPending = updatedStops.findIndex(
+            // Find next PENDING stop — search from 0 to handle any ordering
+            const nextPendingIdx = updatedStops.findIndex(
               (s, i) => i > currentStopIndex && s.status !== 'completed'
             );
-            if (nextPending >= 0) {
-              setCurrentStopIndex(nextPending);
+            // Also check if there are ANY remaining pending (could be earlier if stops were skipped)
+            const anyPending = updatedStops.findIndex(s => s.status !== 'completed');
+
+            if (nextPendingIdx >= 0) {
+              setCurrentStopIndex(nextPendingIdx);
+            } else if (anyPending >= 0 && anyPending !== currentStopIndex) {
+              setCurrentStopIndex(anyPending);
             } else {
               Alert.alert('Route Complete! 🎉', 'All street collection stops have been completed for today.', [
                 { text: 'Back to Dashboard', onPress: () => navigation.goBack() }

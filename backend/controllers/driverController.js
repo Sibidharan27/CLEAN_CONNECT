@@ -6,74 +6,68 @@ let _io = null;
 export const setIo = (io) => { _io = io; };
 
 // ─── Zone-specific route stops per driver ─────────────────────────────────────
-// Each driver gets different stops based on their zone/vehicleId so data is consistent
+// Each zone is a tight residential neighborhood cluster (200-500m between streets)
+// The truck goes street by street, collecting from every home on that street.
 function getZoneStops(driverInfo) {
   const zone = (driverInfo.zone || '').toLowerCase();
   const vehicleId = driverInfo.vehicleId || 'GCT-001';
 
-  // Zone A – Peelamedu PSG area (GCT-001 / Murugan S)
+  // Zone A – Peelamedu residential pocket near PSG (GCT-001 / Murugan S)
+  // Streets are 200-400m apart in a tight residential grid around Peelamedu colony
   if (zone.includes('zone a') || vehicleId === 'GCT-001') {
     return [
-      { stopNumber: 1, address: 'Avinashi Road, Peelamedu Flyover Junction', area: 'Zone A - Peelamedu', street: 'Avinashi Road', landmark: 'Near Avinashi Road–Trichy Road flyover junction, roadside bin cluster', latitude: 11.0178, longitude: 76.9971, status: 'completed' },
-      { stopNumber: 2, address: 'Avinashi Road, near Meenakshi Hospital Junction', area: 'Zone A - Peelamedu', street: 'Avinashi Road', landmark: 'Opposite Meenakshi Hospital signal, roadside dustbin point', latitude: 11.0199, longitude: 77.0018, status: 'completed' },
-      { stopNumber: 3, address: 'Peelamedu Main Road Junction, Avinashi Road', area: 'Zone A - Peelamedu', street: 'Peelamedu Main Road', landmark: 'Peelamedu Main Road–Avinashi Road junction, community bin hub', latitude: 11.0217, longitude: 77.0055, status: 'in_progress' },
-      { stopNumber: 4, address: 'KG Hospital Road, Peelamedu Main Road', area: 'Zone A - Peelamedu', street: 'Peelamedu Main Road', landmark: 'KG Hospital main entrance gate, hospital waste + residential bin', latitude: 11.0234, longitude: 77.0072, status: 'pending' },
-      { stopNumber: 5, address: 'PSG College Road, Peelamedu', area: 'Zone A - Peelamedu', street: 'PSG College Road', landmark: 'PSG College Road T-junction, college-area bin point', latitude: 11.0248, longitude: 77.0030, status: 'pending' },
-      { stopNumber: 6, address: 'GR Damodaran Academy Road, Peelamedu', area: 'Zone A - Peelamedu', street: 'GR Damodaran Road', landmark: 'Beside GRD School gate, school + residential cluster bin', latitude: 11.0269, longitude: 77.0054, status: 'pending' },
-      { stopNumber: 7, address: 'Pudur 2nd Cross Street, Peelamedu', area: 'Zone A - Peelamedu', street: 'Pudur 2nd Cross Street', landmark: 'Pudur residential colony, 2nd Cross Street dustbin point', latitude: 11.0254, longitude: 77.0112, status: 'pending' },
-      { stopNumber: 8, address: 'Fun Republic Mall Service Lane, Avinashi Road', area: 'Zone A - Peelamedu', street: 'Fun Republic Mall Service Lane', landmark: 'Fun Republic Mall side service road, commercial bulk waste bin', latitude: 11.0236, longitude: 77.0143, status: 'pending' },
-      { stopNumber: 9, address: 'Tidel Park Road, Avinashi Road', area: 'Zone A - Peelamedu', street: 'Tidel Park Road', landmark: 'Tidel Park IT road junction, office-area waste collection', latitude: 11.0207, longitude: 77.0110, status: 'pending' },
-      { stopNumber: 10, address: 'Texvalley Mall Road, Avinashi Road', area: 'Zone A - Peelamedu', street: 'Texvalley Mall Road', landmark: 'Texvalley Shopping Complex service entry, end-of-route bulk bin', latitude: 11.0196, longitude: 77.0223, status: 'pending' },
+      { stopNumber: 1, address: 'Peelamedu Colony 1st Street', area: 'Zone A - Peelamedu', street: 'Peelamedu Colony 1st Street', landmark: 'Start of street — collect from all homes on right and left side', latitude: 11.0217, longitude: 77.0031, status: 'completed' },
+      { stopNumber: 2, address: 'Peelamedu Colony 2nd Street', area: 'Zone A - Peelamedu', street: 'Peelamedu Colony 2nd Street', landmark: 'Second residential lane — full street collection both sides', latitude: 11.0225, longitude: 77.0039, status: 'completed' },
+      { stopNumber: 3, address: 'Peelamedu Colony 3rd Street', area: 'Zone A - Peelamedu', street: 'Peelamedu Colony 3rd Street', landmark: 'Third lane — collect from flats and row houses', latitude: 11.0234, longitude: 77.0047, status: 'in_progress' },
+      { stopNumber: 4, address: 'Peelamedu Colony 4th Street', area: 'Zone A - Peelamedu', street: 'Peelamedu Colony 4th Street', landmark: 'Fourth lane — mixed residential, ring bell at each gate', latitude: 11.0242, longitude: 77.0055, status: 'pending' },
+      { stopNumber: 5, address: 'Peelamedu Colony 5th Street', area: 'Zone A - Peelamedu', street: 'Peelamedu Colony 5th Street', landmark: 'Fifth lane — collect from 35 houses, 2 apartment blocks', latitude: 11.0251, longitude: 77.0063, status: 'pending' },
+      { stopNumber: 6, address: 'Peelamedu Cross Road', area: 'Zone A - Peelamedu', street: 'Peelamedu Cross Road', landmark: 'Cross-connecting road — collect from shops and corner houses', latitude: 11.0259, longitude: 77.0048, status: 'pending' },
     ];
   }
 
-  // Zone B – Peelamedu Avinashi Road / JCB area (JCB-001 / Selvam K)
+  // Zone B – Selvampathy Nagar residential pocket (JCB-001 / Selvam K)
+  // Tight cluster of residential streets in Peelamedu Pudur area
   if (zone.includes('zone b') || vehicleId === 'JCB-001') {
     return [
-      { stopNumber: 1, address: 'Avinashi Road, near KMCH Hospital', area: 'Zone B - Avinashi Rd', street: 'Avinashi Road', landmark: 'KMCH Hospital Gate, large waste accumulation point', latitude: 11.0163, longitude: 77.0003, status: 'completed' },
-      { stopNumber: 2, address: 'Avinashi Road, near Brookefields Mall', area: 'Zone B - Avinashi Rd', street: 'Avinashi Road', landmark: 'Brookefields Mall back service road, commercial bulk bin', latitude: 11.0150, longitude: 77.0074, status: 'completed' },
-      { stopNumber: 3, address: 'Avinashi Road, Dairy Circle Junction', area: 'Zone B - Avinashi Rd', street: 'Avinashi Road', landmark: 'Dairy Circle roundabout, roadside community bin cluster', latitude: 11.0135, longitude: 77.0141, status: 'in_progress' },
-      { stopNumber: 4, address: 'Nehru Nagar 1st Street, Peelamedu', area: 'Zone B - Avinashi Rd', street: 'Nehru Nagar 1st Street', landmark: 'Nehru Nagar residential colony bin point', latitude: 11.0122, longitude: 77.0205, status: 'pending' },
-      { stopNumber: 5, address: 'Lakshmi Mills Road, Peelamedu', area: 'Zone B - Avinashi Rd', street: 'Lakshmi Mills Road', landmark: 'Near Lakshmi Mills compound wall, industrial waste area', latitude: 11.0108, longitude: 77.0235, status: 'pending' },
-      { stopNumber: 6, address: 'Avinashi Road, Kuniyamuthur Junction', area: 'Zone B - Avinashi Rd', street: 'Avinashi Road', landmark: 'Kuniyamuthur bypass junction, heavy-vehicle bin cluster', latitude: 11.0089, longitude: 77.0314, status: 'pending' },
-      { stopNumber: 7, address: 'Saibaba Colony Bus Stop', area: 'Zone B - Avinashi Rd', street: 'Saibaba Colony Road', landmark: 'Opposite Saibaba Colony bus stop, residential bin', latitude: 11.0074, longitude: 77.0349, status: 'pending' },
-      { stopNumber: 8, address: 'Sowripalayam Road, near Peelamedu Agri Market', area: 'Zone B - Avinashi Rd', street: 'Sowripalayam Road', landmark: 'Old Agri Market entry, bulk organic waste bin', latitude: 11.0060, longitude: 77.0391, status: 'pending' },
+      { stopNumber: 1, address: 'Selvampathy Nagar 1st Street', area: 'Zone B - Pudur', street: 'Selvampathy Nagar 1st Street', landmark: 'Entry of Selvampathy Nagar — collect from all homes', latitude: 11.0248, longitude: 77.0108, status: 'completed' },
+      { stopNumber: 2, address: 'Selvampathy Nagar 2nd Street', area: 'Zone B - Pudur', street: 'Selvampathy Nagar 2nd Street', landmark: 'Row houses on both sides, 28 homes total', latitude: 11.0256, longitude: 77.0117, status: 'completed' },
+      { stopNumber: 3, address: 'Selvampathy Nagar 3rd Street', area: 'Zone B - Pudur', street: 'Selvampathy Nagar 3rd Street', landmark: 'Longer lane, includes one small apartment complex', latitude: 11.0264, longitude: 77.0126, status: 'in_progress' },
+      { stopNumber: 4, address: 'Pudur Main Road Service Lane', area: 'Zone B - Pudur', street: 'Pudur Main Road Service Lane', landmark: 'Back service lane of Pudur Main Rd, ground-floor shops + flats above', latitude: 11.0272, longitude: 77.0112, status: 'pending' },
+      { stopNumber: 5, address: 'Pudur Cross Street', area: 'Zone B - Pudur', street: 'Pudur Cross Street', landmark: 'Short cross lane connecting 2nd and 3rd streets', latitude: 11.0260, longitude: 77.0100, status: 'pending' },
     ];
   }
 
-  // Zone C – Tidel Park IT corridor (ML-001 / Praveen Kumar)
+  // Zone C – Neelikonampalayam residential grid (ML-001 / Praveen Kumar)
+  // Parallel residential streets in the Neelambur / Avinashi Rd corridor
   if (zone.includes('zone c') || vehicleId === 'ML-001') {
     return [
-      { stopNumber: 1, address: 'Tidel Park Phase 1 Main Gate, Coimbatore', area: 'Zone C - IT Corridor', street: 'Tidel Park Road', landmark: 'Tidel Park Phase 1 main entrance, IT office waste collection', latitude: 11.0218, longitude: 77.0098, status: 'completed' },
-      { stopNumber: 2, address: 'Tidel Park Phase 2 Road, Coimbatore', area: 'Zone C - IT Corridor', street: 'Tidel Park Road', landmark: 'Tidel Park Phase 2 side gate, cafeteria waste bins', latitude: 11.0228, longitude: 77.0128, status: 'completed' },
-      { stopNumber: 3, address: 'Aerodrome Road, near Airport Gate', area: 'Zone C - IT Corridor', street: 'Aerodrome Road', landmark: 'Civil Airport Road junction, nearby residential colony bin', latitude: 11.0242, longitude: 77.0163, status: 'in_progress' },
-      { stopNumber: 4, address: 'Sathy Road, near Gandhipuram Bus Stand', area: 'Zone C - IT Corridor', street: 'Sathy Road', landmark: 'Near Gandhipuram bus stand junction, public dustbin cluster', latitude: 11.0258, longitude: 77.0198, status: 'pending' },
-      { stopNumber: 5, address: 'Race Course Road, Coimbatore', area: 'Zone C - IT Corridor', street: 'Race Course Road', landmark: 'Race Course Road commercial waste pickup point', latitude: 11.0275, longitude: 77.0231, status: 'pending' },
-      { stopNumber: 6, address: 'Trichy Road, near Ukkadam Bus Stand', area: 'Zone C - IT Corridor', street: 'Trichy Road', landmark: 'Ukkadam bus stand area, heavy pedestrian waste zone', latitude: 11.0291, longitude: 77.0267, status: 'pending' },
-      { stopNumber: 7, address: 'DB Road, RS Puram Market', area: 'Zone C - IT Corridor', street: 'DB Road', landmark: 'RS Puram market exit, wet market waste collection', latitude: 11.0310, longitude: 77.0296, status: 'pending' },
-      { stopNumber: 8, address: 'Cross Cut Road, near KR Sweets', area: 'Zone C - IT Corridor', street: 'Cross Cut Road', landmark: 'Cross Cut road – DB road junction, residential cluster bin', latitude: 11.0328, longitude: 77.0318, status: 'pending' },
+      { stopNumber: 1, address: 'Neelikonampalayam 1st Street', area: 'Zone C - Neelambur', street: 'Neelikonampalayam 1st Street', landmark: 'Entry point — 30 individual homes both sides', latitude: 11.0302, longitude: 77.0164, status: 'completed' },
+      { stopNumber: 2, address: 'Neelikonampalayam 2nd Street', area: 'Zone C - Neelambur', street: 'Neelikonampalayam 2nd Street', landmark: 'Mix of houses and 2 small schools', latitude: 11.0311, longitude: 77.0173, status: 'completed' },
+      { stopNumber: 3, address: 'Neelikonampalayam 3rd Street', area: 'Zone C - Neelambur', street: 'Neelikonampalayam 3rd Street', landmark: 'Fully residential, narrow lane — walk with handcart if needed', latitude: 11.0320, longitude: 77.0182, status: 'in_progress' },
+      { stopNumber: 4, address: 'Neelikonampalayam 4th Street', area: 'Zone C - Neelambur', street: 'Neelikonampalayam 4th Street', landmark: '4th lane — 22 houses + corner kiosk', latitude: 11.0329, longitude: 77.0191, status: 'pending' },
+      { stopNumber: 5, address: 'Neelambur Main Road Service Lane', area: 'Zone C - Neelambur', street: 'Neelambur Main Road Service Lane', landmark: 'Side service road — collect from shops and roadside residences', latitude: 11.0315, longitude: 77.0155, status: 'pending' },
+      { stopNumber: 6, address: 'Neelambur Colony Cross Street', area: 'Zone C - Neelambur', street: 'Neelambur Colony Cross Street', landmark: 'Cross lane — end-of-zone collection before returning to depot', latitude: 11.0308, longitude: 77.0148, status: 'pending' },
     ];
   }
 
-  // Zone D / Night shift – Avinashi Road night sweep (RS-001 / Muthu Raj)
+  // Zone D – Ganapathy residential grid (RS-001 / Muthu Raj)
+  // Tight cluster of streets in Ganapathy / Saravanampatti residential area
   if (zone.includes('zone d') || vehicleId === 'RS-001') {
     return [
-      { stopNumber: 1, address: 'Ganapathy Main Road, Coimbatore', area: 'Zone D - Night Sweep', street: 'Ganapathy Main Road', landmark: 'Ganapathy town centre dustbin hub', latitude: 11.0362, longitude: 76.9988, status: 'completed' },
-      { stopNumber: 2, address: 'Vadavalli Main Road, Coimbatore', area: 'Zone D - Night Sweep', street: 'Vadavalli Main Road', landmark: 'Vadavalli junction roadside bins', latitude: 11.0339, longitude: 76.9909, status: 'in_progress' },
-      { stopNumber: 3, address: 'Saravanampatty Road, Coimbatore', area: 'Zone D - Night Sweep', street: 'Saravanampatty Road', landmark: 'Near Saravanampatty signal, residential bin cluster', latitude: 11.0318, longitude: 76.9851, status: 'pending' },
-      { stopNumber: 4, address: 'Palladam Road, near SIPCOT Gate', area: 'Zone D - Night Sweep', street: 'Palladam Road', landmark: 'SIPCOT Industrial estate entry, industrial waste zone', latitude: 11.0297, longitude: 76.9793, status: 'pending' },
-      { stopNumber: 5, address: 'Kalapatti Main Road', area: 'Zone D - Night Sweep', street: 'Kalapatti Road', landmark: 'Kalapatti road junction, commercial bin cluster', latitude: 11.0278, longitude: 76.9737, status: 'pending' },
-      { stopNumber: 6, address: 'Vilankurichi Road, near Water Tank', area: 'Zone D - Night Sweep', street: 'Vilankurichi Road', landmark: 'Old water tank junction, residential waste bin', latitude: 11.0260, longitude: 76.9668, status: 'pending' },
+      { stopNumber: 1, address: 'Ganapathy Nagar 1st Street', area: 'Zone D - Ganapathy', street: 'Ganapathy Nagar 1st Street', landmark: 'First street — ring bell, wait 2 minutes per house', latitude: 11.0362, longitude: 76.9988, status: 'completed' },
+      { stopNumber: 2, address: 'Ganapathy Nagar 2nd Street', area: 'Zone D - Ganapathy', street: 'Ganapathy Nagar 2nd Street', landmark: 'Second lane — 25 homes, 1 temple at end of street', latitude: 11.0370, longitude: 76.9998, status: 'in_progress' },
+      { stopNumber: 3, address: 'Ganapathy Nagar 3rd Street', area: 'Zone D - Ganapathy', street: 'Ganapathy Nagar 3rd Street', landmark: 'Third lane — new houses, some still under construction', latitude: 11.0379, longitude: 77.0008, status: 'pending' },
+      { stopNumber: 4, address: 'Ganapathy Main Road Service Lane', area: 'Zone D - Ganapathy', street: 'Ganapathy Main Road Side Lane', landmark: 'Service lane beside main road — shops and residential mixed', latitude: 11.0368, longitude: 77.0018, status: 'pending' },
+      { stopNumber: 5, address: 'Ganapathy Cross Street', area: 'Zone D - Ganapathy', street: 'Ganapathy Cross Street', landmark: 'Short connector — collect from 15 homes before turning back', latitude: 11.0358, longitude: 77.0010, status: 'pending' },
     ];
   }
 
-  // Default fallback – generic Coimbatore stops
+  // Default fallback – generic Peelamedu residential streets
   return [
-    { stopNumber: 1, address: 'Town Hall Road, Coimbatore', area: 'Coimbatore City', street: 'Town Hall Road', landmark: 'Town Hall junction dustbin cluster', latitude: 11.0026, longitude: 76.9660, status: 'completed' },
-    { stopNumber: 2, address: 'Big Bazaar Street, Coimbatore', area: 'Coimbatore City', street: 'Big Bazaar Street', landmark: 'Big Bazaar market waste pickup', latitude: 11.0037, longitude: 76.9685, status: 'in_progress' },
-    { stopNumber: 3, address: 'Oppanakara Street, Coimbatore', area: 'Coimbatore City', street: 'Oppanakara Street', landmark: 'Oppanakara Street market bin cluster', latitude: 11.0049, longitude: 76.9710, status: 'pending' },
-    { stopNumber: 4, address: 'Cross Cut Road, Gandhipuram', area: 'Coimbatore City', street: 'Cross Cut Road', landmark: 'Near Gandhipuram bus stand, public bins', latitude: 11.0069, longitude: 76.9738, status: 'pending' },
-    { stopNumber: 5, address: 'Railway Station Road, Coimbatore', area: 'Coimbatore City', street: 'Railway Station Road', landmark: 'Coimbatore Railway Station south entrance, platform waste', latitude: 11.0046, longitude: 76.9595, status: 'pending' },
+    { stopNumber: 1, address: 'Peelamedu Layout 1st Street', area: 'Peelamedu', street: 'Layout 1st Street', landmark: 'Entry of layout — collect from all homes', latitude: 11.0230, longitude: 77.0065, status: 'completed' },
+    { stopNumber: 2, address: 'Peelamedu Layout 2nd Street', area: 'Peelamedu', street: 'Layout 2nd Street', landmark: 'Second lane, 20 homes', latitude: 11.0238, longitude: 77.0073, status: 'in_progress' },
+    { stopNumber: 3, address: 'Peelamedu Layout 3rd Street', area: 'Peelamedu', street: 'Layout 3rd Street', landmark: 'Third lane, end of today\'s route', latitude: 11.0246, longitude: 77.0081, status: 'pending' },
+    { stopNumber: 4, address: 'Peelamedu Layout Cross Road', area: 'Peelamedu', street: 'Layout Cross Road', landmark: 'Cross connector — pick up remaining bins', latitude: 11.0241, longitude: 77.0059, status: 'pending' },
   ];
 }
 

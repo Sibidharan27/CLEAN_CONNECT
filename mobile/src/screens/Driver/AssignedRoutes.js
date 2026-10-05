@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { Colors, textStyles, BorderRadius, Spacing, Shadows } from '../../theme';
 import Header from '../../components/Header/Header';
 import MapCard from '../../components/Map/MapCard';
@@ -73,6 +74,7 @@ const AssignedRoutes = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [completing, setCompleting] = useState(null);
   const [driverLocation, setDriverLocation] = useState(null);
+  const [startingRoute, setStartingRoute] = useState(false);
 
   // Assigned complaints state
   const [complaints, setComplaints] = useState([]);
@@ -108,10 +110,16 @@ const AssignedRoutes = ({ navigation }) => {
     }
   }, []);
 
+  // Reload on every focus — keeps in sync with Dashboard start/stop actions
+  useFocusEffect(
+    useCallback(() => {
+      loadRoutes();
+      loadComplaints();
+      getCurrentLocation().then(loc => setDriverLocation(loc)).catch(() => {});
+    }, [loadRoutes, loadComplaints])
+  );
+
   useEffect(() => {
-    loadRoutes();
-    loadComplaints();
-    // Grab driver's current location for geofencing
     getCurrentLocation().then(loc => setDriverLocation(loc)).catch(() => {});
   }, []);
 
@@ -291,19 +299,32 @@ const AssignedRoutes = ({ navigation }) => {
             <View style={styles.navBtnRow}>
               {routeData?.status !== 'active' && (
                 <TouchableOpacity
-                  style={[styles.startRouteBtn, Shadows.md]}
+                  style={[styles.startRouteBtn, Shadows.md, startingRoute && { opacity: 0.7 }]}
+                  disabled={startingRoute}
                   onPress={async () => {
+                    setStartingRoute(true);
                     try {
                       const res = await startRoute(routeData?._id || 'today');
-                      if (res) setRouteData(res);
-                      Alert.alert('Route Started! 🚛', 'Your route is now active and broadcasting GPS location.');
+                      // Sync state immediately so button disappears without needing refresh
+                      const updated = res || { ...routeData, status: 'active' };
+                      setRouteData(updated);
+                      if (updated?.stops) setStops(updated.stops);
+                      Alert.alert('Route Started! 🚛', 'Your route is now active and broadcasting GPS.');
                     } catch (e) {
                       Alert.alert('Notice', e.message || 'Could not start route.');
+                    } finally {
+                      setStartingRoute(false);
                     }
                   }}
                 >
-                  <MaterialCommunityIcons name="play-circle" size={18} color="#fff" />
-                  <Text style={styles.startRouteBtnText}>Start Route</Text>
+                  {startingRoute ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <MaterialCommunityIcons name="play-circle" size={18} color="#fff" />
+                  )}
+                  <Text style={styles.startRouteBtnText}>
+                    {startingRoute ? 'Starting...' : 'Start Route'}
+                  </Text>
                 </TouchableOpacity>
               )}
               <TouchableOpacity
