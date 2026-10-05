@@ -18,7 +18,9 @@ export const completeStop = (routeId, stopId) =>
 export const getDriverStats = () => authRequest('/driver/stats');
 
 // ─── Driver: update GPS location ─────────────────────────────────────────────
-export const postDriverLocation = (latitude, longitude, vehicleId = 'GCT-001', heading = 0, speed = 0) =>
+// vehicleId should always be passed from the driver's user profile (user.vehicleId)
+// The backend will also fall back to req.user.vehicleId if omitted
+export const postDriverLocation = (latitude, longitude, vehicleId, heading = 0, speed = 0) =>
   authRequest('/driver/location', {
     method: 'POST',
     body: JSON.stringify({ latitude, longitude, vehicleId, heading, speed }),

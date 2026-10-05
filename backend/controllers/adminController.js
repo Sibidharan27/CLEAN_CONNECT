@@ -266,7 +266,15 @@ export async function deleteVehicle(req, res, next) {
   } catch (e) { next(e); }
 }
 
-// ── Driver Complaint Stats (attended in a time window) ────────────────────────
+// ── Reset today's routes (admin tool) ───────────────────────────────────────
+export async function resetTodayRoutes(req, res, next) {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const result = await Route.deleteMany({ date: today });
+    res.json({ message: `Deleted ${result.deletedCount} route(s) for ${today}. Each driver will get a fresh route on next login.`, deletedCount: result.deletedCount });
+  } catch (e) { next(e); }
+}
+
 export async function getDriverComplaintStats(req, res, next) {
   try {
     // ?period=3&unit=months  OR  ?period=1&unit=years

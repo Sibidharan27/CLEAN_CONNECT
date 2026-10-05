@@ -99,30 +99,31 @@ const DriverDashboard = ({ navigation }) => {
       setStats(prev => ({ ...prev, routeStatus: 'active' }));
 
       // Broadcast first location immediately
+      const driverVehicleId = user?.vehicleId || routeData?.vehicleId || 'GCT-001';
       getCurrentLocation().then(async (loc) => {
         if (loc) {
-          broadcastDriverLocation('GCT-001', {
+          broadcastDriverLocation(driverVehicleId, {
             latitude: loc.latitude,
             longitude: loc.longitude,
             heading: loc.heading || 0,
             speed: loc.speed || 0,
           });
           try {
-            await postDriverLocation(loc.latitude, loc.longitude, 'GCT-001', loc.heading || 0, loc.speed || 0);
+            await postDriverLocation(loc.latitude, loc.longitude, driverVehicleId, loc.heading || 0, loc.speed || 0);
           } catch {}
         }
       }).catch(() => {});
 
       // Begin continuous watch
       startWatching(async (loc) => {
-        broadcastDriverLocation('GCT-001', {
+        broadcastDriverLocation(driverVehicleId, {
           latitude: loc.latitude,
           longitude: loc.longitude,
           heading: loc.heading || 0,
           speed: loc.speed || 0,
         });
         try {
-          await postDriverLocation(loc.latitude, loc.longitude, 'GCT-001', loc.heading || 0, loc.speed || 0);
+          await postDriverLocation(loc.latitude, loc.longitude, driverVehicleId, loc.heading || 0, loc.speed || 0);
         } catch {}
       });
 

@@ -1033,31 +1033,72 @@ function CitizensView({ token }) {
 function RoutesView({ token }) {
   const [routes, setRoutes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [resetting, setResetting] = useState(false);
   const headers = { Authorization: `Bearer ${token}` };
 
-  useEffect(() => {
-    api.get('/admin/routes', { headers }).then(r => setRoutes(r.data)).catch(console.error).finally(() => setLoading(false));
-  }, []);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await api.get('/admin/routes', { headers });
+      setRoutes(r.data);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  }, [token]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const resetRoutes = async () => {
+    if (!window.confirm('Delete all of today\'s routes? Each driver will get a fresh route automatically when they next open the app.')) return;
+    setResetting(true);
+    try {
+      const res = await api.delete('/admin/routes/today', { headers });
+      alert(res.data.message);
+      load();
+    } catch (e) {
+      alert(e.response?.data?.message || 'Reset failed');
+    } finally { setResetting(false); }
+  };
 
   return (
     <div>
       <div className="header">
-        <div className="header-title"><h1>Today&apos;s Routes</h1><p>All active collection routes for {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p></div>
+        <div className="header-title">
+          <h1>Today&apos;s Routes</h1>
+          <p>All active collection routes for {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button className="btn btn-outline" onClick={load}><Icon name="refresh" size={15} /> Refresh</button>
+          <button
+            className="btn"
+            onClick={resetRoutes}
+            disabled={resetting}
+            style={{ background: 'var(--accent-red, #ef4444)', borderColor: 'var(--accent-red, #ef4444)' }}
+          >
+            {resetting ? 'Resetting…' : '🔄 Reset All Routes'}
+          </button>
+        </div>
+      </div>
+      <div className="card" style={{ marginBottom: 12, padding: '10px 16px', fontSize: 13, color: 'var(--text-dim)', background: 'var(--bg-surface)', borderLeft: '3px solid var(--primary)' }}>
+        ℹ️ Each driver automatically gets their own zone-specific route when they open the app. Use <strong>Reset All Routes</strong> to regenerate fresh routes for all drivers.
       </div>
       <div className="card">
         {loading ? <Spinner /> : routes.length === 0 ? (
-          <p className="empty-msg">No routes created today. Routes are auto-generated when a driver logs in.</p>
+          <p className="empty-msg">No routes created today yet. Routes auto-generate when a driver logs in.</p>
         ) : (
           <table>
-            <thead><tr><th>Driver</th><th>Vehicle</th><th>Status</th><th>Progress</th><th>Stops</th><th>Started</th></tr></thead>
+            <thead><tr><th>Driver</th><th>Vehicle ID</th><th>Zone</th><th>Status</th><th>Progress</th><th>Total Stops</th><th>Started</th></tr></thead>
             <tbody>
               {routes.map(r => {
                 const done = r.stops?.filter(s => s.status === 'completed').length || 0;
                 const total = r.stops?.length || 0;
                 return (
                   <tr key={r._id}>
-                    <td><div style={{ fontWeight: 600 }}>{r.driver?.name || 'Unknown'}</div><div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{r.driver?.phone}</div></td>
-                    <td style={{ fontFamily: 'monospace' }}>{r.vehicleId}</td>
+                    <td>
+                      <div style={{ fontWeight: 600 }}>{r.driver?.name || 'Unknown'}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{r.driver?.vehicleId || r.vehicleId}</div>
+                    </td>
+                    <td style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--primary)' }}>{r.vehicleId}</td>
+                    <td style={{ fontSize: 13, color: 'var(--text-muted)' }}>{r.stops?.[0]?.area || '—'}</td>
                     <td><Badge status={r.status} /></td>
                     <td>
                       <div style={{ fontWeight: 600 }}>{done}/{total}</div>

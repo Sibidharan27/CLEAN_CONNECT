@@ -4,7 +4,7 @@ import {
   getStats, getAllComplaints, updateComplaint, deleteComplaint,
   getAllDrivers, getAllCitizens, getAllRoutes, getAllSchedules, createDriver,
   getAllVehicles, createVehicle, updateVehicle, deleteVehicle,
-  getDriverComplaintStats,
+  getDriverComplaintStats, resetTodayRoutes,
 } from '../controllers/adminController.js';
 
 const router = Router();
@@ -21,6 +21,7 @@ router.post('/drivers', createDriver);
 router.get('/drivers/complaint-stats', getDriverComplaintStats);
 router.get('/citizens', getAllCitizens);
 router.get('/routes', getAllRoutes);
+router.delete('/routes/today', resetTodayRoutes); // Reset all routes so drivers get fresh per-zone routes
 router.get('/schedules', getAllSchedules);
 
 // Vehicle management

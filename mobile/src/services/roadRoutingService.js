@@ -12,6 +12,25 @@
  * NOTE: coords in OSRM are lon,lat (longitude FIRST)
  */
 
+// ─── Haversine distance (no network, instant) ────────────────────────────────
+/**
+ * Returns the straight-line ("as the crow flies") distance between two coords in km.
+ * Used by citizen tracking to estimate truck proximity without any OSRM call.
+ *
+ * @param {{ latitude: number, longitude: number }} a
+ * @param {{ latitude: number, longitude: number }} b
+ * @returns {number} Distance in km (2 decimal places)
+ */
+export function getHaversineDistance(a, b) {
+  const R = 6371; // Earth radius in km
+  const dLat = ((b.latitude - a.latitude) * Math.PI) / 180;
+  const dLon = ((b.longitude - a.longitude) * Math.PI) / 180;
+  const lat1 = (a.latitude * Math.PI) / 180;
+  const lat2 = (b.latitude * Math.PI) / 180;
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return +(2 * R * Math.asin(Math.sqrt(x))).toFixed(2);
+}
+
 const OSRM_BASE = 'https://router.project-osrm.org/route/v1/driving';
 
 // ─── In-memory cache ──────────────────────────────────────────────────────────

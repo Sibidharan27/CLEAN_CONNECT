@@ -252,25 +252,28 @@ export async function seedAll() {
       console.log('✅ Seeded Peelamedu schedules');
     }
 
-    // 7. Today's Route for driver
+    // 7. Today's Route for Murugan S (demo route for Zone A)
     const today = new Date().toISOString().split('T')[0];
-    const routeExists = await Route.findOne({ date: today });
-    if (!routeExists && muruganDriver) {
+    const muruganRouteExists = muruganDriver
+      ? await Route.findOne({ driver: muruganDriver._id, date: today })
+      : true; // skip if driver not found
+    if (!muruganRouteExists && muruganDriver) {
+      const vehicleIdForMurugan = muruganDriver.vehicleId || 'GCT-001';
       await Route.create({
         driver: muruganDriver._id,
-        vehicleId: 'GCT-001',
+        vehicleId: vehicleIdForMurugan,
         date: today,
         status: 'active',
         startedAt: new Date(Date.now() - 3600000 * 2),
         stops: [
-          { stopNumber: 1, address: 'PSG College Main Gate, Peelamedu', area: 'Peelamedu', landmark: 'Near PSG Tech Entrance', latitude: 11.0244, longitude: 77.0028, status: 'completed', completedAt: new Date(Date.now() - 3600000) },
-          { stopNumber: 2, address: 'Fun Republic Mall, Avinashi Road', area: 'Peelamedu', landmark: 'Front Service Road', latitude: 11.0255, longitude: 77.0098, status: 'in_progress' },
-          { stopNumber: 3, address: 'GR Damodaran Academy, Peelamedu', area: 'Peelamedu', landmark: 'School Bus Bay', latitude: 11.0280, longitude: 77.0142, status: 'pending' },
-          { stopNumber: 4, address: 'Tidel Park IT Corridor, Peelamedu', area: 'Peelamedu', landmark: 'Tidel Park Main Gate', latitude: 11.0298, longitude: 77.0264, status: 'pending' },
-          { stopNumber: 5, address: 'Peelamedu Pudur Bus Stop', area: 'Peelamedu', landmark: 'Opposite Pudur Market', latitude: 11.0268, longitude: 77.0055, status: 'pending' },
+          { stopNumber: 1, address: 'PSG College Main Gate, Peelamedu', area: 'Zone A - Peelamedu', street: 'PSG College Road', landmark: 'Near PSG Tech Entrance', latitude: 11.0244, longitude: 77.0028, status: 'completed', completedAt: new Date(Date.now() - 3600000) },
+          { stopNumber: 2, address: 'Fun Republic Mall, Avinashi Road', area: 'Zone A - Peelamedu', street: 'Avinashi Road', landmark: 'Front Service Road', latitude: 11.0255, longitude: 77.0098, status: 'in_progress' },
+          { stopNumber: 3, address: 'GR Damodaran Academy, Peelamedu', area: 'Zone A - Peelamedu', street: 'GR Damodaran Road', landmark: 'School Bus Bay', latitude: 11.0280, longitude: 77.0142, status: 'pending' },
+          { stopNumber: 4, address: 'Tidel Park IT Corridor, Peelamedu', area: 'Zone A - Peelamedu', street: 'Tidel Park Road', landmark: 'Tidel Park Main Gate', latitude: 11.0298, longitude: 77.0264, status: 'pending' },
+          { stopNumber: 5, address: 'Peelamedu Pudur Bus Stop', area: 'Zone A - Peelamedu', street: 'Pudur Road', landmark: 'Opposite Pudur Market', latitude: 11.0268, longitude: 77.0055, status: 'pending' },
         ],
       });
-      console.log('✅ Seeded today route for Murugan S in Peelamedu');
+      console.log(`✅ Seeded today route for Murugan S — vehicle: ${vehicleIdForMurugan}`);
     }
   } catch (err) {
     console.error('Seed data error:', err.message);

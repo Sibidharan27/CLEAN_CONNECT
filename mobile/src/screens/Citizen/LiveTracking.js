@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions,
   ActivityIndicator, ScrollView,
 } from 'react-native';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,7 +11,7 @@ import { Colors, textStyles, BorderRadius, Spacing, Shadows } from '../../theme'
 import { subscribeToVehicle, getVehicleLocation } from '../../services/trackingService';
 import { useLocation } from '../../context/LocationContext';
 import { sendTruckNearbyAlert } from '../../services/notificationService';
-import { getRoadRoute, getNextStopRoute, getMultiStopRoadRoute } from '../../services/roadRoutingService';
+import { getHaversineDistance } from '../../services/roadRoutingService';
 
 const VEHICLE_ID = 'GCT-001';
 
@@ -154,17 +154,10 @@ const LiveTracking = ({ navigation }) => {
 
   const [truckData, setTruckData] = useState(null);
   const [lastUpdated, setLastUpdated] = useState('—');
-  const [toHomePath, setToHomePath] = useState([]);       // truck → citizen's home (road)
-  const [toNextStopPath, setToNextStopPath] = useState([]); // truck → next collection stop (road)
-  const [fullRoutePath, setFullRoutePath] = useState([]); // full remaining route polyline
   const [distanceKm, setDistanceKm] = useState(null);
-  const [eta, setEta] = useState('—');
-  const [nextStopEta, setNextStopEta] = useState('—');
-  const [nextStopDist, setNextStopDist] = useState(null);
   const [viewMode, setViewMode] = useState('map');
   const [locationError, setLocationError] = useState(null);
   const unsubRef = useRef(null);
-  const routeComputedRef = useRef(false);
 
   // Pulse animation for truck marker
   useEffect(() => {
@@ -201,64 +194,21 @@ const LiveTracking = ({ navigation }) => {
     return () => { if (unsubRef.current) unsubRef.current(); };
   }, []);
 
-  // Re-compute routes when myLocation arrives
-  useEffect(() => {
-    if (myLocation && truckData?.latitude && !routeComputedRef.current) {
-      routeComputedRef.current = true;
-      computeAllRoutes(truckData, myLocation);
-    }
-  }, [myLocation, truckData]);
-
-  // Core function: compute three polylines via OSRM roads (queued sequentially to avoid TCP errors)
-  const computeAllRoutes = useCallback(async (truck, userLoc) => {
-    const truckPt = { latitude: truck.latitude, longitude: truck.longitude };
-    const homePt = userLoc
-      ? { latitude: userLoc.latitude, longitude: userLoc.longitude }
-      : PEELAMEDU;
-    const nextPt = { latitude: NEXT_STOP.latitude, longitude: NEXT_STOP.longitude };
-
-    // 1. Truck → Citizen's home (staggered: fire immediately)
-    getRoadRoute(truckPt, homePt).then(r => {
-      if (r.coordinates.length > 1) {
-        setToHomePath(r.coordinates);
-        setDistanceKm(r.distanceKm);
-        setEta(r.durationMin <= 1 ? '< 1 min' : `${r.durationMin} mins`);
-        sendTruckNearbyAlert(r.distanceKm);
-      }
-    }).catch(() => {});
-
-    // 2. Truck → Next stop (staggered: wait 600ms so queue has space)
-    setTimeout(() => {
-      getNextStopRoute(truckPt, nextPt).then(r => {
-        if (r.coordinates.length > 1) {
-          setToNextStopPath(r.coordinates);
-          setNextStopDist(r.distanceKm);
-          setNextStopEta(r.durationMin <= 1 ? '< 1 min' : `${r.durationMin} mins`);
-        }
-      }).catch(() => {});
-    }, 600);
-
-    // 3. Full remaining multi-stop route (staggered: wait 1200ms — lowest priority)
-    setTimeout(() => {
-      const pendingStops = STREET_STOPS.filter(s => s.status !== 'completed')
-        .map(s => ({ latitude: s.latitude, longitude: s.longitude }));
-      if (pendingStops.length > 1) {
-        getMultiStopRoadRoute([truckPt, ...pendingStops]).then(coords => {
-          if (coords.length > 1) setFullRoutePath(coords);
-        }).catch(() => {});
-      }
-    }, 1200);
-  }, []);
-
   const handleTruckUpdate = useCallback((data) => {
     setTruckData(data);
     setLastUpdated(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
+
+    // Compute straight-line distance from truck to citizen (no OSRM — avoids lag)
     if (data?.latitude && myLocation) {
-      routeComputedRef.current = false; // allow recompute
-      computeAllRoutes(data, myLocation);
+      const d = getHaversineDistance(
+        { latitude: data.latitude, longitude: data.longitude },
+        { latitude: myLocation.latitude, longitude: myLocation.longitude }
+      );
+      const dKm = +d.toFixed(2);
+      setDistanceKm(dKm);
+      sendTruckNearbyAlert(dKm);
     }
-    // Map stays where the user left it — no automatic recentering
-  }, [myLocation, computeAllRoutes]);
+  }, [myLocation]);
 
   const truckCoords = truckData?.latitude
     ? { latitude: truckData.latitude, longitude: truckData.longitude }
@@ -338,50 +288,6 @@ const LiveTracking = ({ navigation }) => {
             showsCompass={true}
             customMapStyle={mapStyle}
           >
-            {/* ── Full remaining route polyline (faint background path) ── */}
-            {fullRoutePath.length > 1 && (
-              <Polyline
-                coordinates={fullRoutePath}
-                strokeColor="rgba(100, 160, 100, 0.35)"
-                strokeWidth={5}
-                lineDashPattern={[6, 4]}
-              />
-            )}
-
-            {/* ── Truck → NEXT collection stop road arrow (bright, solid) ── */}
-            {toNextStopPath.length > 1 && (
-              <>
-                {/* Glow halo */}
-                <Polyline
-                  coordinates={toNextStopPath}
-                  strokeColor="rgba(255, 160, 0, 0.30)"
-                  strokeWidth={9}
-                />
-                {/* Solid amber road path to next stop */}
-                <Polyline
-                  coordinates={toNextStopPath}
-                  strokeColor="#FF8F00"
-                  strokeWidth={5}
-                />
-              </>
-            )}
-
-            {/* ── Truck → citizen home road path (green) ── */}
-            {toHomePath.length > 1 && (
-              <>
-                <Polyline
-                  coordinates={toHomePath}
-                  strokeColor="rgba(46, 125, 50, 0.25)"
-                  strokeWidth={8}
-                />
-                <Polyline
-                  coordinates={toHomePath}
-                  strokeColor={Colors.primary}
-                  strokeWidth={4}
-                />
-              </>
-            )}
-
             {/* ── All street dustbin markers ── */}
             {STREET_STOPS.map((stop) => {
               const isDone = stop.status === 'completed';
@@ -454,17 +360,19 @@ const LiveTracking = ({ navigation }) => {
           <View style={styles.bottomPanel}>
             <View style={styles.panelHandle} />
 
-            {/* ETA cards row */}
+            {/* Info cards row */}
             <View style={styles.etaRow}>
-              <View style={styles.etaCard}>
-                <MaterialCommunityIcons name="timer-outline" size={20} color={Colors.primary} />
-                <Text style={styles.etaValue}>{eta !== '—' ? eta : '—'}</Text>
-                <Text style={styles.etaLabel}>ETA to You</Text>
-              </View>
               <View style={styles.etaCard}>
                 <MaterialCommunityIcons name="map-marker-distance" size={20} color={Colors.info} />
                 <Text style={styles.etaValue}>{distanceKm != null ? `${distanceKm} km` : '—'}</Text>
-                <Text style={styles.etaLabel}>Road Distance</Text>
+                <Text style={styles.etaLabel}>Distance</Text>
+              </View>
+              <View style={styles.etaCard}>
+                <MaterialCommunityIcons name="clock-outline" size={20} color={Colors.primary} />
+                <Text style={styles.etaValue}>
+                  {distanceKm != null ? (distanceKm < 0.3 ? '< 5 min' : `~${Math.round(distanceKm * 4)} min`) : '—'}
+                </Text>
+                <Text style={styles.etaLabel}>Est. ETA</Text>
               </View>
               <View style={styles.etaCard}>
                 <MaterialCommunityIcons name="check-circle-outline" size={20} color={Colors.success} />
@@ -483,9 +391,9 @@ const LiveTracking = ({ navigation }) => {
               </View>
             </View>
 
-            {/* Next stop road route card */}
+            {/* Next stop info card */}
             <View style={styles.nextStopCard}>
-              <MaterialCommunityIcons name="navigation-variant" size={18} color="#FF8F00" />
+              <MaterialCommunityIcons name="map-marker-right" size={18} color="#FF8F00" />
               <View style={{ flex: 1, marginLeft: 8 }}>
                 <Text style={styles.nextStopLabel}>
                   NEXT STOP — {NEXT_STOP.street}
@@ -493,9 +401,7 @@ const LiveTracking = ({ navigation }) => {
                 <Text style={styles.nextStopAddress} numberOfLines={1}>{NEXT_STOP.address}</Text>
               </View>
               <View style={styles.nextStopEtaBadge}>
-                <Text style={styles.nextStopEtaText}>
-                  {nextStopEta !== '—' ? nextStopEta : '~5 min'}
-                </Text>
+                <Text style={styles.nextStopEtaText}>~5 min</Text>
               </View>
             </View>
           </View>
@@ -587,12 +493,12 @@ const LiveTracking = ({ navigation }) => {
                     <Text style={styles.timeText}>{stop.time}</Text>
                   </View>
 
-                  {/* Next stop road route hint */}
-                  {isNext && nextStopDist != null && (
+                  {/* Next stop info hint */}
+                  {isNext && (
                     <View style={styles.nextRouteHint}>
-                      <MaterialCommunityIcons name="navigation-variant" size={12} color="#FF8F00" />
+                      <MaterialCommunityIcons name="map-marker-right" size={12} color="#FF8F00" />
                       <Text style={styles.nextRouteHintText}>
-                        Truck heading here via road — {nextStopDist} km, ETA {nextStopEta}
+                        Truck heading to this stop next
                       </Text>
                     </View>
                   )}

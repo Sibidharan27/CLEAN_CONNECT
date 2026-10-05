@@ -9,8 +9,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, textStyles, BorderRadius, Spacing, Shadows } from '../../theme';
 import { getDriverRoutes, completeStop, startRoute, postDriverLocation } from '../../services/scheduleService';
 import { broadcastDriverLocation } from '../../services/trackingService';
+import { useAuth } from '../../context/AuthContext';
 import { useLocation } from '../../context/LocationContext';
-import { getMultiStopRoadRoute, getRoadRoute, getOptimizedShortestRoute } from '../../services/roadRoutingService';
+import { getMultiStopRoadRoute, getRoadRoute } from '../../services/roadRoutingService';
 
 const { width } = Dimensions.get('window');
 
@@ -20,6 +21,7 @@ const COIMBATORE = { latitude: 11.0168, longitude: 76.9558 };
 const LiveNavigation = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const mapRef = useRef(null);
+  const { user } = useAuth();
   const { location: myLocation, getCurrentLocation, startWatching } = useLocation();
 
   const [routeData, setRouteData] = useState(null);
@@ -42,11 +44,17 @@ const LiveNavigation = ({ navigation }) => {
       const firstPending = stopList.findIndex(s => s.status !== 'completed');
       setCurrentStopIndex(firstPending >= 0 ? firstPending : 0);
 
-      // Generate optimized shortest road routing
-      const validStops = stopList.filter(s => s.latitude && s.longitude);
-      if (validStops.length > 0) {
-        const origin = myLocation || validStops[0];
-        getOptimizedShortestRoute(origin, validStops).then(res => {
+      // Generate sequential road route in stop order (NOT TSP-reordered)
+      const pendingStops = stopList.filter(s => s.latitude && s.longitude && s.status !== 'completed');
+      if (pendingStops.length >= 2) {
+        // Use the first pending stop as origin if no GPS yet, chain sequentially
+        const origin = myLocation || pendingStops[0];
+        const waypoints = myLocation ? pendingStops : pendingStops.slice(1);
+        getMultiStopRoadRoute([origin, ...waypoints]).then(coords => {
+          if (coords?.length > 0) setRoadPolyline(coords);
+        }).catch(() => {});
+      } else if (pendingStops.length === 1 && myLocation) {
+        getRoadRoute(myLocation, pendingStops[0]).then(res => {
           if (res.coordinates?.length > 0) setRoadPolyline(res.coordinates);
         }).catch(() => {});
       }
@@ -64,12 +72,17 @@ const LiveNavigation = ({ navigation }) => {
     }
   }, []);
 
-  // Update optimized shortest road polyline whenever current location or stops change
+  // Update sequential road polyline whenever current stop or location changes
   useEffect(() => {
     const pendingStops = stops.filter(s => s.status !== 'completed' && s.latitude && s.longitude);
-    if (pendingStops.length > 0) {
-      const startPoint = myLocation || pendingStops[0];
-      getOptimizedShortestRoute(startPoint, pendingStops).then(res => {
+    if (pendingStops.length >= 2) {
+      const origin = myLocation || pendingStops[0];
+      const waypoints = myLocation ? pendingStops : pendingStops.slice(1);
+      getMultiStopRoadRoute([origin, ...waypoints]).then(coords => {
+        if (coords?.length > 0) setRoadPolyline(coords);
+      }).catch(() => {});
+    } else if (pendingStops.length === 1 && myLocation) {
+      getRoadRoute(myLocation, pendingStops[0]).then(res => {
         if (res.coordinates?.length > 0) setRoadPolyline(res.coordinates);
       }).catch(() => {});
     }
@@ -108,20 +121,21 @@ const LiveNavigation = ({ navigation }) => {
       setIsRouteActive(true);
       if (updated) setRouteData(updated);
 
-      // Start watching location and broadcasting
+      // Start watching location and broadcasting with the driver's own vehicleId
+      const driverVehicleId = user?.vehicleId || routeData?.vehicleId || 'GCT-001';
       startWatching(async (loc) => {
-        broadcastDriverLocation('GCT-001', {
+        broadcastDriverLocation(driverVehicleId, {
           latitude: loc.latitude,
           longitude: loc.longitude,
           heading: loc.heading || 0,
           speed: loc.speed || 0,
         });
         try {
-          await postDriverLocation(loc.latitude, loc.longitude, 'GCT-001', loc.heading || 0, loc.speed || 0);
+          await postDriverLocation(loc.latitude, loc.longitude, driverVehicleId, loc.heading || 0, loc.speed || 0);
         } catch {}
       });
 
-      Alert.alert('Route Active! 🚛', 'Live GPS is now being broadcast to citizens.');
+      Alert.alert('Route Active! 🚛', `Live GPS broadcasting on vehicle ${driverVehicleId}.`);
     } catch (e) {
       Alert.alert('Notice', e.message || 'Could not start trip.');
     } finally {
