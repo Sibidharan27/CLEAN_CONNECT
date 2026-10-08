@@ -13,6 +13,7 @@ import notificationRoutes from './routes/notificationRoutes.js';
 import driverRoutes from './routes/driverRoutes.js';
 import scheduleRoutes from './routes/scheduleRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import analyticsRoutes from './routes/analyticsRoutes.js';
 import { setIo } from './controllers/driverController.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import User from './models/User.js';
@@ -46,6 +47,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/driver', driverRoutes);
 app.use('/api/schedules', scheduleRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

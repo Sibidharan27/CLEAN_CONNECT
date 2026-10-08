@@ -16,17 +16,25 @@ import { CATEGORIES } from '../../constants/data';
 import { useLocation } from '../../context/LocationContext';
 import { createComplaint } from '../../services/complaintService';
 import { useNotifications } from '../../context/NotificationContext';
+import { useAuth } from '../../context/AuthContext';
+import { PEELAMEDU_ZONES, ALL_PEELAMEDU_STREETS, getZoneForStreet } from '../../constants/zonesData';
 
 const ReportComplaint = ({ navigation }) => {
+  const { user } = useAuth();
   const { getCurrentLocation, isLocating } = useLocation();
   const { refreshUnreadCount } = useNotifications();
+
+  const defaultZone = getZoneForStreet(user?.street || user?.zone);
 
   const [form, setForm] = useState({
     description: '',
     category: '',
-    address: '',
-    latitude: null,
-    longitude: null,
+    street: user?.street || defaultZone.streets[0].name,
+    zone: defaultZone.name,
+    area: 'Peelamedu',
+    address: user?.address || `${defaultZone.streets[0].name}, Peelamedu`,
+    latitude: defaultZone.streets[0].latitude,
+    longitude: defaultZone.streets[0].longitude,
     imageUri: null,
   });
   const [errors, setErrors] = useState({});
@@ -44,19 +52,40 @@ const ReportComplaint = ({ navigation }) => {
 
   const update = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
 
+  // Handle Street change and update Zone automatically
+  const handleStreetSelect = (streetName) => {
+    const matched = ALL_PEELAMEDU_STREETS.find(s => s.name === streetName);
+    if (matched) {
+      setForm(prev => ({
+        ...prev,
+        street: matched.name,
+        zone: matched.zoneName,
+        address: `${matched.name}, Peelamedu`,
+        latitude: matched.latitude,
+        longitude: matched.longitude,
+      }));
+    } else {
+      update('street', streetName);
+    }
+  };
+
   // Real GPS using LocationContext
   const handleGPS = async () => {
     try {
       const loc = await getCurrentLocation();
-      update('address', loc.address);
+      update('address', loc.address || 'Peelamedu Location');
       update('latitude', loc.latitude);
       update('longitude', loc.longitude);
+      if (loc.address) {
+        const detectedZone = getZoneForStreet(loc.address);
+        update('zone', detectedZone.name);
+      }
     } catch (e) {
       Alert.alert('Location Error', e.message || 'Unable to get location. Please enter manually.');
     }
   };
 
-  // Real image picker
+  // Image picker
   const handlePickImage = () => {
     Alert.alert('Upload Photo', 'Choose a source', [
       {
@@ -84,7 +113,8 @@ const ReportComplaint = ({ navigation }) => {
     if (!form.description.trim()) errs.description = 'Description is required';
     else if (form.description.trim().length < 10) errs.description = 'Please provide more details (min 10 chars)';
     if (!form.category) errs.category = 'Please select a category';
-    if (!form.address.trim()) errs.address = 'Location is required — use GPS or type manually';
+    if (!form.street) errs.street = 'Please select your street in Peelamedu';
+    if (!form.address.trim()) errs.address = 'Location address is required';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -97,6 +127,9 @@ const ReportComplaint = ({ navigation }) => {
       const result = await createComplaint({
         category: form.category,
         description: form.description,
+        area: 'Peelamedu',
+        zone: form.zone,
+        street: form.street,
         address: form.address,
         latitude: form.latitude,
         longitude: form.longitude,
@@ -113,6 +146,11 @@ const ReportComplaint = ({ navigation }) => {
     }
   };
 
+  const streetOptions = ALL_PEELAMEDU_STREETS.map(s => ({
+    label: `${s.name} (${s.zoneName.replace('Peelamedu – ', '')})`,
+    value: s.name,
+  }));
+
   if (submitted) {
     return (
       <View style={styles.successContainer}>
@@ -122,7 +160,9 @@ const ReportComplaint = ({ navigation }) => {
             <MaterialCommunityIcons name="check" size={44} color="#fff" />
           </LinearGradient>
           <Text style={styles.successTitle}>Complaint Submitted!</Text>
-          <Text style={styles.successSubtitle}>Your complaint has been registered. We'll assign a team member shortly.</Text>
+          <Text style={styles.successSubtitle}>
+            Registered for {form.street}, {form.zone}. Assigned collection vehicle will resolve it promptly.
+          </Text>
           <View style={styles.successIdBox}>
             <Text style={styles.successIdLabel}>Complaint ID</Text>
             <Text style={styles.successId}>CC-{complaintId}</Text>
@@ -139,7 +179,7 @@ const ReportComplaint = ({ navigation }) => {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.container}>
-        <Header title="Report Complaint" subtitle="Help us keep the city clean" showBack onBack={() => navigation.goBack()} />
+        <Header title="Report Complaint" subtitle="Peelamedu Waste Reporting" showBack onBack={() => navigation.goBack()} />
         <Animated.ScrollView style={{ opacity: fadeAnim }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Image Upload */}
           <TouchableOpacity style={styles.imageUpload} onPress={handlePickImage} activeOpacity={0.8}>
@@ -163,19 +203,50 @@ const ReportComplaint = ({ navigation }) => {
           </TouchableOpacity>
 
           <View style={styles.formCard}>
-            <Dropdown label="Category" value={form.category} options={CATEGORIES}
-              onSelect={v => update('category', v)} placeholder="Select issue category" error={errors.category} />
-            <InputField label="Description" value={form.description} onChangeText={v => update('description', v)}
-              placeholder="Describe the issue in detail..." multiline numberOfLines={4}
-              icon="text-long" error={errors.description} autoCapitalize="sentences" />
+            <Dropdown
+              label="Issue Category"
+              value={form.category}
+              options={CATEGORIES}
+              onSelect={v => update('category', v)}
+              placeholder="Select issue category"
+              error={errors.category}
+            />
 
-            {/* Location */}
-            <Text style={styles.locationLabel}>Location</Text>
+            {/* Peelamedu Street Selector */}
+            <Dropdown
+              label="Street in Peelamedu"
+              value={form.street}
+              options={streetOptions}
+              onSelect={handleStreetSelect}
+              placeholder="Select your street"
+              error={errors.street}
+            />
+
+            {/* Zone Tag Display */}
+            <View style={styles.zoneTagBox}>
+              <MaterialCommunityIcons name="map-marker-radius" size={16} color={Colors.primary} />
+              <Text style={styles.zoneTagText}>Mapped Zone: <strong>{form.zone}</strong></Text>
+            </View>
+
+            <InputField
+              label="Description"
+              value={form.description}
+              onChangeText={v => update('description', v)}
+              placeholder="Describe the issue in detail (e.g. bin overflowing, missed collection)..."
+              multiline
+              numberOfLines={4}
+              icon="text-long"
+              error={errors.description}
+              autoCapitalize="sentences"
+            />
+
+            {/* Specific Address / Landmark */}
+            <Text style={styles.locationLabel}>Exact Location / Landmark</Text>
             <View style={[styles.locationCard, errors.address && styles.errorBorder]}>
               <View style={styles.locationTop}>
                 <MaterialCommunityIcons name="map-marker-outline" size={20} color={Colors.primary} />
                 <Text style={styles.locationText} numberOfLines={2}>
-                  {form.address || 'Location not set yet'}
+                  {form.address || 'Select street above or use GPS'}
                 </Text>
               </View>
               <View style={styles.locationActions}>
@@ -186,8 +257,13 @@ const ReportComplaint = ({ navigation }) => {
                   </View>
                 </TouchableOpacity>
                 <View style={styles.orDivider}><Text style={styles.orText}>or</Text></View>
-                <InputField value={form.address} onChangeText={v => update('address', v)}
-                  placeholder="Type address manually" containerStyle={{ marginBottom: 0, flex: 1 }} style={{ minHeight: 44 }} />
+                <InputField
+                  value={form.address}
+                  onChangeText={v => update('address', v)}
+                  placeholder="Type address / landmark"
+                  containerStyle={{ marginBottom: 0, flex: 1 }}
+                  style={{ minHeight: 44 }}
+                />
               </View>
             </View>
             {errors.address && (
@@ -206,7 +282,7 @@ const ReportComplaint = ({ navigation }) => {
 
           <View style={styles.guidelines}>
             <Text style={styles.guidelinesTitle}>📋 Submission Guidelines</Text>
-            {['Provide accurate location for faster resolution', 'Upload clear photos for better assessment', 'Be specific in your description', 'One complaint per issue only'].map((g, i) => (
+            {['Select accurate street within Peelamedu for assigned vehicle dispatch', 'Upload clear photos for supervisor assessment', 'Be specific with landmarks', 'One complaint per issue'].map((g, i) => (
               <View key={i} style={styles.guidelineItem}>
                 <MaterialCommunityIcons name="check-circle" size={14} color={Colors.primary} />
                 <Text style={styles.guidelineText}>{g}</Text>
@@ -214,8 +290,13 @@ const ReportComplaint = ({ navigation }) => {
             ))}
           </View>
 
-          <PrimaryButton title="Submit Complaint" onPress={handleSubmit} loading={isLoading}
-            icon={<MaterialCommunityIcons name="send" size={18} color="#fff" />} style={{ marginBottom: Spacing.sm }} />
+          <PrimaryButton
+            title="Submit Complaint"
+            onPress={handleSubmit}
+            loading={isLoading}
+            icon={<MaterialCommunityIcons name="send" size={18} color="#fff" />}
+            style={{ marginBottom: Spacing.sm }}
+          />
           <SecondaryButton title="Cancel" onPress={() => navigation.goBack()} />
           <View style={{ height: 40 }} />
         </Animated.ScrollView>
@@ -237,6 +318,12 @@ const styles = StyleSheet.create({
   changePhotoBtn: { position: 'absolute', bottom: 10, right: 10, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: BorderRadius.full },
   changePhotoText: { ...textStyles.label, color: '#fff' },
   formCard: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.base, marginBottom: Spacing.base, ...Shadows.sm },
+  zoneTagBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: Colors.primarySurface, borderRadius: BorderRadius.md,
+    padding: Spacing.sm, marginBottom: Spacing.md, borderWidth: 1, borderColor: Colors.primary + '25',
+  },
+  zoneTagText: { ...textStyles.caption, color: Colors.primary, fontFamily: 'Poppins_500Medium' },
   locationLabel: { ...textStyles.label, color: Colors.textSecondary, marginBottom: 6 },
   locationCard: { backgroundColor: Colors.inputBackground, borderRadius: BorderRadius.md, borderWidth: 1.5, borderColor: Colors.inputBorder, padding: Spacing.md, marginBottom: 4 },
   errorBorder: { borderColor: Colors.danger },

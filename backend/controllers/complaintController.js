@@ -22,22 +22,32 @@ export const upload = multer({
   },
 });
 
+import { getZoneByStreet } from '../utils/zonesData.js';
+
 export async function createComplaint(req, res, next) {
   try {
-    const { category, description, address, latitude, longitude, priority } = req.body;
+    let { category, description, address, street, zone, area, latitude, longitude, priority } = req.body;
     // Auto-generate title from category so the UI doesn't need a separate title field
     const title = `${category || 'General'} Complaint`;
     const images = req.files ? req.files.map(f => `/uploads/${f.filename}`) : [];
+
+    const detectedZone = getZoneByStreet(street || address);
+    area = area || 'Peelamedu';
+    zone = zone || detectedZone.name;
+    street = street || address || 'Peelamedu Street';
 
     const complaint = await Complaint.create({
       citizen: req.user.id,
       title,
       category,
       description,
-      location: { address, latitude: parseFloat(latitude) || 0, longitude: parseFloat(longitude) || 0 },
+      area,
+      zone,
+      street,
+      location: { address: address || street, latitude: parseFloat(latitude) || 0, longitude: parseFloat(longitude) || 0 },
       images,
       priority: priority || 'medium',
-      timeline: [{ status: 'open', note: 'Complaint registered successfully.' }],
+      timeline: [{ status: 'open', note: 'Complaint registered successfully in ' + zone }],
     });
 
     res.status(201).json(complaint);

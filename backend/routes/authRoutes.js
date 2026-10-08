@@ -13,7 +13,11 @@ router.post('/reset-password', resetPassword);
 router.patch('/push-token', protect, async (req, res) => {
   // Store push token on user — optional, swallow errors
   try {
+    const { default: Citizen } = await import('../models/Citizen.js');
+    const { default: Driver } = await import('../models/Driver.js');
     const { default: User } = await import('../models/User.js');
+    await Citizen.findByIdAndUpdate(req.user.id, { expoPushToken: req.body.expoPushToken }) ||
+    await Driver.findByIdAndUpdate(req.user.id, { expoPushToken: req.body.expoPushToken }) ||
     await User.findByIdAndUpdate(req.user.id, { expoPushToken: req.body.expoPushToken });
     res.json({ ok: true });
   } catch { res.json({ ok: true }); }

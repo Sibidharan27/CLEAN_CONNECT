@@ -66,11 +66,18 @@ export const me = (req, res) => {
 export async function updateMe(req, res, next) {
   try {
     const { name, phone, area, address } = req.body;
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { ...(name && { name }), ...(phone !== undefined && { phone }), ...(area !== undefined && { area }), ...(address !== undefined && { address }) },
-      { new: true, runValidators: true }
-    );
+    const updateData = {
+      ...(name && { name }),
+      ...(phone !== undefined && { phone }),
+      ...(area !== undefined && { area }),
+      ...(address !== undefined && { address }),
+    };
+
+    const user =
+      await Citizen.findByIdAndUpdate(req.user.id, updateData, { new: true, runValidators: true }) ||
+      await Driver.findByIdAndUpdate(req.user.id, updateData, { new: true, runValidators: true }) ||
+      await User.findByIdAndUpdate(req.user.id, updateData, { new: true, runValidators: true });
+
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json({ user: buildUserPayload(user) });
   } catch (e) { next(e); }

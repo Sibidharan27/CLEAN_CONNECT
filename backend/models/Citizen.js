@@ -8,7 +8,9 @@ const citizenSchema = new mongoose.Schema({
   role:     { type: String, default: 'citizen', immutable: true },
   phone:    String,
   address:  String,
-  area:     String,
+  area:     { type: String, default: 'Peelamedu' },
+  zone:     { type: String, default: 'Peelamedu – PSG Zone' },
+  street:   { type: String, default: 'PSG Tech College Road' },
   expoPushToken: String,
 }, { timestamps: true, collection: 'citizens' });
 

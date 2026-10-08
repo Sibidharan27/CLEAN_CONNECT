@@ -27,7 +27,8 @@ import { useLocation } from '../../context/LocationContext';
 const IMG_BASE = API_URL.replace('/api', '');
 
 // ─── Geofence radius in kilometres ───────────────────────────────────────────
-const COMPLETION_RADIUS_KM = 0.3; // 300 metres
+// ─── Geofence radius in kilometres (50 metres) ──────────────────────────────────
+const COMPLETION_RADIUS_KM = 0.05; // 50 metres
 
 // ─── Haversine distance helper ───────────────────────────────────────────────
 function haversineKm(lat1, lon1, lat2, lon2) {
@@ -148,14 +149,10 @@ const AssignedRoutes = ({ navigation }) => {
         if (dist > COMPLETION_RADIUS_KM) {
           const distMetres = Math.round(dist * 1000);
           Alert.alert(
-            '📍 Too Far Away',
-            `You are ${distMetres}m from this stop. You need to be within ${COMPLETION_RADIUS_KM * 1000}m to mark it complete.\n\nPlease drive closer to the location.`,
+            '📍 Move Closer to Collection Area',
+            `You are currently ${distMetres}m from this stop. Move closer to the collection area (within 50m) to mark this street complete.`,
             [
-              {
-                text: 'Navigate There',
-                onPress: () => openNavigation(stop.latitude, stop.longitude, stop.address),
-              },
-              { text: 'Cancel', style: 'cancel' },
+              { text: 'OK', style: 'default' },
             ]
           );
           return;
@@ -187,18 +184,31 @@ const AssignedRoutes = ({ navigation }) => {
       {
         text: 'Complete ✅', onPress: async () => {
           setCompleting(stop._id);
+          const stopId = stop._id;
+          const now = new Date().toISOString();
+
+          // 1. Instant optimistic state update for iPhone & Android
+          const optimisticStops = stops.map(s => {
+            if (s._id === stopId) {
+              return { ...s, status: 'completed', completedAt: now };
+            }
+            return s;
+          });
+          const nextPending = optimisticStops.find(s => s.status !== 'completed');
+          if (nextPending) {
+            nextPending.status = 'in_progress';
+          }
+          setStops([...optimisticStops]);
+
           try {
-            const updated = await completeStop(routeData._id, stop._id);
+            const bodyCoords = (driverLocation || location) ? { latitude: (driverLocation || location).latitude, longitude: (driverLocation || location).longitude } : {};
+            const updated = await completeStop(routeData._id, stop._id, bodyCoords);
             if (updated?.stops && Array.isArray(updated.stops)) {
               setStops(updated.stops);
               setRouteData(updated);
-            } else {
-              setStops(prev => prev.map(s =>
-                s._id === stop._id ? { ...s, status: 'completed', completedAt: new Date().toISOString() } : s
-              ));
             }
           } catch (e) {
-            Alert.alert('Error', e.message || 'Could not mark stop as done. Please try again.');
+            Alert.alert('Notice', e.message || 'Could not mark stop as done. Please try again.');
           } finally {
             setCompleting(null);
           }
@@ -207,32 +217,18 @@ const AssignedRoutes = ({ navigation }) => {
     ]);
   };
 
-  // ─── Open native navigation (Google Maps / Apple Maps) ──────────────────────
-  const openNavigation = (lat, lon, label = '') => {
-    const encodedLabel = encodeURIComponent(label || 'Destination');
-    const googleUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=driving`;
-    const appleMapsUrl = `maps://?daddr=${lat},${lon}&dirflg=d`;
-
-    Linking.canOpenURL(googleUrl).then(supported => {
-      if (supported) {
-        Linking.openURL(googleUrl);
-      } else {
-        Linking.openURL(appleMapsUrl).catch(() =>
-          Alert.alert('No Map App', 'Could not open navigation. Please install Google Maps.')
-        );
-      }
-    });
-  };
-
   const completed = stops.filter(r => r.status === 'completed').length;
 
   if (loading) return <ActivityIndicator color={Colors.primary} style={{ flex: 1, marginTop: 60 }} />;
+
+  const zoneName = routeData?.zoneName || 'Peelamedu – PSG Zone';
+  const vehicleId = routeData?.vehicleId || 'GCT-001';
 
   return (
     <View style={styles.container}>
       <Header
         title="My Assignments"
-        subtitle={`${completed}/${stops.length} stops • ${complaints.length} complaints`}
+        subtitle={`${zoneName} • ${completed}/${stops.length} streets done`}
         showBack
         onBack={() => navigation.goBack()}
         rightIcon="navigation-variant-outline"
@@ -251,7 +247,7 @@ const AssignedRoutes = ({ navigation }) => {
             color={activeTab === TAB_ROUTE ? '#fff' : Colors.textSecondary}
           />
           <Text style={[styles.tabBtnText, activeTab === TAB_ROUTE && styles.tabBtnTextActive]}>
-            Route Stops
+            Assigned Streets
           </Text>
           {stops.length > 0 && (
             <View style={[styles.tabCount, activeTab === TAB_ROUTE && styles.tabCountActive]}>
@@ -290,8 +286,8 @@ const AssignedRoutes = ({ navigation }) => {
           {/* Map Preview */}
           <View style={styles.mapContainer}>
             <MapCard
-              title="Today's Route"
-              subtitle={`${stops.length} street stops`}
+              title={zoneName}
+              subtitle={`${vehicleId} • ${stops.length} Street Collection Route`}
               height={160}
               stops={stops}
               onPress={() => navigation.navigate('LiveNavigation')}
@@ -354,7 +350,7 @@ const AssignedRoutes = ({ navigation }) => {
           <View style={styles.geofenceInfo}>
             <MaterialCommunityIcons name="map-marker-radius-outline" size={14} color={Colors.info} />
             <Text style={styles.geofenceInfoText}>
-              You must be within 300m of a stop to mark it as complete.
+              You must be within 50m of a collection street to mark it as complete.
             </Text>
           </View>
 
@@ -411,20 +407,7 @@ const AssignedRoutes = ({ navigation }) => {
                       {isExpanded && item.status !== 'completed' && (
                         <View style={styles.expandedActions}>
                           <TouchableOpacity
-                            style={[styles.actionBtn, styles.primaryAction]}
-                            onPress={() => {
-                              if (item.latitude && item.longitude) {
-                                openNavigation(item.latitude, item.longitude, item.address);
-                              } else {
-                                navigation.navigate('LiveNavigation');
-                              }
-                            }}
-                          >
-                            <MaterialCommunityIcons name="navigation-variant" size={16} color="#fff" />
-                            <Text style={styles.actionBtnText}>Navigate</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={[styles.actionBtn, styles.secondaryAction]}
+                            style={[styles.actionBtn, styles.secondaryAction, { flex: 1 }]}
                             onPress={() => handleCompleteStop(item)}
                             disabled={completing === item._id}
                           >
@@ -548,18 +531,8 @@ const AssignedRoutes = ({ navigation }) => {
 
                   {/* Action buttons */}
                   <View style={styles.complaintActions}>
-                    {hasCoords ? (
-                      <TouchableOpacity
-                        style={[styles.complaintActionBtn, styles.navigateComplaintBtn]}
-                        onPress={() => openNavigation(item.location.latitude, item.location.longitude, item.location.address)}
-                      >
-                        <MaterialCommunityIcons name="navigation-variant" size={15} color="#fff" />
-                        <Text style={styles.complaintActionBtnText}>Get Directions</Text>
-                      </TouchableOpacity>
-                    ) : null}
-
                     <TouchableOpacity
-                      style={[styles.complaintActionBtn, styles.resolveComplaintBtn]}
+                      style={[styles.complaintActionBtn, styles.resolveComplaintBtn, { flex: 1 }]}
                       onPress={async () => {
                         // Geofence check if complaint coordinates exist
                         const cLat = item.location?.latitude;
@@ -582,10 +555,9 @@ const AssignedRoutes = ({ navigation }) => {
                               const distM = Math.round(dist * 1000);
                               Alert.alert(
                                 '📍 Too Far Away',
-                                `You are ${distM}m away from the complaint location.\n\nYou must be within 300m to mark it as resolved.\n\nPlease navigate to the location first.`,
+                                `You are ${distM}m away from the complaint location.\n\nYou must be within 300m to mark it as resolved.`,
                                 [
-                                  { text: 'Get Directions', onPress: () => openNavigation(cLat, cLon, item.location?.address) },
-                                  { text: 'Cancel', style: 'cancel' },
+                                  { text: 'OK', style: 'default' },
                                 ]
                               );
                               return;
@@ -628,7 +600,7 @@ const AssignedRoutes = ({ navigation }) => {
               <View style={styles.emptyComplaints}>
                 <MaterialCommunityIcons name="clipboard-check-outline" size={56} color={Colors.textTertiary} />
                 <Text style={styles.emptyTitle}>No Assigned Complaints</Text>
-                <Text style={styles.emptySubtitle}>Complaints assigned to you by admin will appear here with navigation directions.</Text>
+                <Text style={styles.emptySubtitle}>Complaints assigned to you by admin will appear here.</Text>
               </View>
             }
             ListFooterComponent={<View style={{ height: 100 }} />}

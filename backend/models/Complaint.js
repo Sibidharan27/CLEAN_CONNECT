@@ -11,6 +11,9 @@ const complaintSchema = new mongoose.Schema({
   title: { type: String, trim: true, default: '' },
   category: { type: String, required: true },
   description: { type: String, required: true },
+  area: { type: String, default: 'Peelamedu' },
+  zone: { type: String, default: 'Peelamedu – PSG Zone' },
+  street: { type: String, default: '' },
   location: {
     address: String,
     latitude: Number,

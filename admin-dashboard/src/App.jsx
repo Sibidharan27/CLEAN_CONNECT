@@ -6,6 +6,8 @@ import api from './services/api';
 const Icon = ({ name, size = 18 }) => {
   const icons = {
     dashboard: <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>,
+    hotspot: <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z M12 4c4.41 0 8 3.59 8 8s-3.59 8-8 8-8-3.59-8-8 3.59-8 8-8z"/>,
+    zones: <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/>,
     complaints: <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 9h-2V5h2v6zm0 4h-2v-2h2v2z"/>,
     drivers: <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>,
     vehicles: <path d="M17 8H3v9h1.56c.35 1.17 1.43 2 2.44 2s2.09-.83 2.44-2h5.12c.35 1.17 1.43 2 2.44 2s2.09-.83 2.44-2H21v-5l-4-4zM3 11V9h4v2H3zm4 6.5c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm7-6.5H9V9h5v2zm3 6.5c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm1-6.5h-3V9h2l1 1v1z"/>,
@@ -76,7 +78,7 @@ function AdminLogin({ onLogin }) {
         <div className="login-brand">
           <div className="brand-icon" style={{ width: 56, height: 56, fontSize: 28, borderRadius: 14 }}>+</div>
           <h1 className="login-title">CleanConnect+</h1>
-          <p className="login-subtitle">Admin Control Panel</p>
+          <p className="login-subtitle">Admin Control Panel • Peelamedu Zone Management</p>
         </div>
         <form onSubmit={handleSubmit} className="login-form">
           <div className="form-group">
@@ -111,6 +113,7 @@ function Badge({ status }) {
     closed: ['badge-dim', 'Closed'],
     active: ['badge-in_progress', 'Active'],
     completed: ['badge-resolved', 'Completed'],
+    'no route': ['badge-dim', 'no route'],
   };
   const [cls, label] = map[status] || ['badge-dim', status];
   return <span className={`badge ${cls}`}>{label}</span>;
@@ -159,7 +162,7 @@ function DashboardView({ token }) {
   if (error) return (
     <div>
       <div className="header">
-        <div className="header-title"><h1>System Overview</h1><p>Real-time metrics</p></div>
+        <div className="header-title"><h1>Peelamedu System Overview</h1><p>Real-time metrics</p></div>
         <button className="btn btn-outline" onClick={load}><Icon name="refresh" size={15} /> Retry</button>
       </div>
       <div className="card" style={{ textAlign: 'center', padding: 40 }}>
@@ -177,23 +180,23 @@ function DashboardView({ token }) {
     <div>
       <div className="header">
         <div className="header-title">
-          <h1>System Overview</h1>
-          <p>Real-time metrics for CleanConnect+ Peelamedu waste collection network</p>
+          <h1>Peelamedu System Overview</h1>
+          <p>Real-time metrics for CleanConnect+ Peelamedu Zone-Based Waste Collection Network</p>
         </div>
         <button className="btn btn-outline" onClick={load}><Icon name="refresh" size={15} /> Refresh</button>
       </div>
 
       <div className="stats-grid">
         <StatCard label="Total Complaints" value={s.totalComplaints ?? 0} sub={`${s.openComplaints ?? 0} open · ${s.inProgressComplaints ?? 0} in progress`} color="var(--accent-amber)" />
-        <StatCard label="Resolved" value={s.resolvedComplaints ?? 0} sub={`${s.resolutionRate ?? 0}% resolution rate`} color="var(--primary)" />
-        <StatCard label="Registered Drivers" value={s.totalDrivers ?? 0} sub={`${s.activeRoutes ?? 0} routes active today`} color="var(--accent-blue)" />
+        <StatCard label="Resolved Complaints" value={s.resolvedComplaints ?? 0} sub={`${s.resolutionRate ?? 0}% resolution rate`} color="var(--primary)" />
+        <StatCard label="Peelamedu Drivers" value={s.totalDrivers ?? 0} sub={`${s.activeRoutes ?? 0} zone routes active today`} color="var(--accent-blue)" />
         <StatCard label="Fleet Vehicles" value={s.totalVehicles ?? 0} sub={`${s.activeVehicles ?? 0} active · ${s.maintenanceVehicles ?? 0} in maintenance`} color="var(--accent-purple)" />
       </div>
 
-      {/* Category Breakdown */}
+      {/* Category Breakdown & Trend */}
       <div className="two-col">
         <div className="card">
-          <h3 className="card-title">Complaints by Category</h3>
+          <h3 className="card-title">Complaints by Category (Peelamedu)</h3>
           {s.byCategory?.length > 0 ? (
             <div className="bar-list">
               {s.byCategory.map(c => {
@@ -233,11 +236,310 @@ function DashboardView({ token }) {
   );
 }
 
+// ─── Hotspot Analysis & Zone Prioritization View ──────────────────────────────
+function HotspotAnalysisView({ token }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedZone, setSelectedZone] = useState('all');
+  const headers = { Authorization: `Bearer ${token}` };
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/analytics/hotspots', { headers });
+      setData(res.data);
+    } catch (e) {
+      console.error('Hotspot analytics error:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (loading) return <Spinner />;
+
+  const zones = data?.zones || [];
+  const filteredZones = selectedZone === 'all' ? zones : zones.filter(z => z.zoneId === selectedZone);
+
+  return (
+    <div>
+      <div className="header">
+        <div className="header-title">
+          <h1>Garbage Hotspot Analysis &amp; Zone Prioritization</h1>
+          <p>Peelamedu Street-by-Street Hotspot Detection, Risk Scoring &amp; Municipal Clearance Prioritization</p>
+        </div>
+        <button className="btn btn-outline" onClick={load}><Icon name="refresh" size={15} /> Refresh Data</button>
+      </div>
+
+      {/* Summary KPI Cards */}
+      <div className="stats-grid">
+        <StatCard
+          label="Highest Priority Zone"
+          value={data?.highestPriorityZone?.replace('Peelamedu – ', '') || 'PSG Zone'}
+          sub="Requires immediate vehicle dispatch"
+          color="var(--accent-red)"
+        />
+        <StatCard
+          label="Top Critical Hotspot Street"
+          value={data?.topCriticalStreet?.streetName || 'Peelamedu Colony 3rd St'}
+          sub={`${data?.topCriticalStreet?.totalComplaints || 4} reported complaints`}
+          color="var(--accent-amber)"
+        />
+        <StatCard
+          label="Open Hotspot Complaints"
+          value={data?.totalOpenComplaints || 0}
+          sub="Across all Peelamedu Zones"
+          color="var(--accent-blue)"
+        />
+        <StatCard
+          label="Monitored Zones"
+          value={data?.totalZones || 3}
+          sub="18 compact residential streets"
+          color="var(--primary)"
+        />
+      </div>
+
+      {/* Filter Toolbar */}
+      <div className="toolbar" style={{ marginBottom: 20 }}>
+        <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-main)' }}>
+          🔍 Filter by Peelamedu Zone:
+        </div>
+        <select
+          className="filter-select"
+          value={selectedZone}
+          onChange={e => setSelectedZone(e.target.value)}
+        >
+          <option value="all">All Peelamedu Zones ({zones.length})</option>
+          {zones.map(z => (
+            <option key={z.zoneId} value={z.zoneId}>{z.zoneName}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Zone Prioritization Cards Grid */}
+      <div className="hotspot-grid">
+        {filteredZones.map(z => (
+          <div key={z.zoneId} className="hotspot-card">
+            <div className="hotspot-card-header">
+              <div>
+                <div className="hotspot-zone-title">{z.zoneName}</div>
+                <div className="hotspot-zone-meta">
+                  Driver: <strong>{z.driverName}</strong> • Vehicle: <strong>{z.vehicleId}</strong>
+                </div>
+              </div>
+              <span className={`priority-pill priority-${z.priorityLevel.toLowerCase()}`}>
+                {z.priorityLevel} PRIORITY
+              </span>
+            </div>
+
+            {/* Metrics */}
+            <div className="hotspot-metrics-row">
+              <div className="metric-cell">
+                <div className="metric-val" style={{ color: 'var(--accent-red)' }}>{z.openComplaints}</div>
+                <div className="metric-lbl">Open</div>
+              </div>
+              <div className="metric-cell">
+                <div className="metric-val" style={{ color: 'var(--accent-amber)' }}>{z.overflowingBins}</div>
+                <div className="metric-lbl">Overflowing</div>
+              </div>
+              <div className="metric-cell">
+                <div className="metric-val" style={{ color: 'var(--primary)' }}>{z.resolvedComplaints}</div>
+                <div className="metric-lbl">Resolved</div>
+              </div>
+            </div>
+
+            {/* Street Hotspot List */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 8 }}>
+                Street-by-Street Hotspots &amp; Risk:
+              </div>
+              <div className="street-hotspot-list">
+                {z.streets.map(st => {
+                  const riskClass = st.riskLevel === 'Critical Hotspot' ? 'risk-critical' : st.riskLevel === 'Moderate Risk' ? 'risk-moderate' : 'risk-normal';
+                  const badgeClass = st.riskLevel === 'Critical Hotspot' ? 'critical' : st.riskLevel === 'Moderate Risk' ? 'moderate' : 'normal';
+                  return (
+                    <div key={st.streetName} className={`street-hotspot-item ${riskClass}`}>
+                      <div>
+                        <div className="street-item-name">{st.streetName}</div>
+                        <div className="street-item-sub">
+                          {st.totalComplaints} complaints · {st.housesCount} houses · {st.binType}
+                        </div>
+                      </div>
+                      <span className={`risk-badge ${badgeClass}`}>
+                        {st.riskLevel}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Route Status footer */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, borderTop: '1px solid var(--border-color)', fontSize: 12 }}>
+              <span style={{ color: 'var(--text-dim)' }}>
+                Collection: <strong>{z.scheduleDay}</strong> ({z.timeSlot})
+              </span>
+              <span style={{ fontWeight: 700, color: z.routeStatus === 'active' ? 'var(--primary)' : 'var(--accent-amber)' }}>
+                {z.routeStatus === 'active' ? '🚚 Route In Progress' : '⏳ Route Pending'}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Street Hotspot Frequency Table */}
+      <div className="card">
+        <h3 className="card-title" style={{ marginBottom: 16 }}>
+          Peelamedu Street Hotspot Ranking &amp; Clearance Breakdown
+        </h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Street Name</th>
+              <th>Zone</th>
+              <th>Total Complaints</th>
+              <th>Open Issues</th>
+              <th>High Priority</th>
+              <th>Risk Level</th>
+              <th>Assigned Vehicle</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredZones.flatMap(z => z.streets.map(s => ({ ...s, zoneName: z.zoneName, vehicleId: z.vehicleId }))).map((st, idx) => (
+              <tr key={st.streetName + idx}>
+                <td style={{ fontWeight: 700 }}>{st.streetName}</td>
+                <td style={{ fontSize: 13, color: 'var(--text-muted)' }}>{st.zoneName}</td>
+                <td>
+                  <span style={{ fontWeight: 800, color: st.totalComplaints > 0 ? 'var(--accent-amber)' : 'var(--text-dim)' }}>
+                    {st.totalComplaints}
+                  </span>
+                </td>
+                <td>
+                  <span style={{ color: st.openComplaints > 0 ? 'var(--accent-red)' : 'var(--text-dim)', fontWeight: 600 }}>
+                    {st.openComplaints}
+                  </span>
+                </td>
+                <td>
+                  <span style={{ color: st.highPriorityComplaints > 0 ? 'var(--accent-red)' : 'var(--text-dim)' }}>
+                    {st.highPriorityComplaints}
+                  </span>
+                </td>
+                <td>
+                  <span className={`risk-badge ${st.riskLevel === 'Critical Hotspot' ? 'critical' : st.riskLevel === 'Moderate Risk' ? 'moderate' : 'normal'}`}>
+                    {st.riskLevel}
+                  </span>
+                </td>
+                <td style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--primary)' }}>{st.vehicleId}</td>
+                <td>
+                  <span className={`badge ${st.openComplaints > 0 ? 'badge-pending' : 'badge-resolved'}`}>
+                    {st.openComplaints > 0 ? 'Action Needed' : 'Cleared'}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ─── Zones & Streets Management View ──────────────────────────────────────────
+function ZonesView({ token }) {
+  const [zones, setZones] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const headers = { Authorization: `Bearer ${token}` };
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/analytics/hotspots', { headers });
+      setZones(res.data.zones || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (loading) return <Spinner />;
+
+  return (
+    <div>
+      <div className="header">
+        <div className="header-title">
+          <h1>Peelamedu Zones &amp; Streets Management</h1>
+          <p>Single source of truth for Area → Zone → 5–6 Streets → Driver → Vehicle → Schedule</p>
+        </div>
+        <button className="btn btn-outline" onClick={load}><Icon name="refresh" size={15} /> Refresh</button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 20 }}>
+        {zones.map(z => (
+          <div key={z.zoneId} className="card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div>
+                <h3 className="card-title" style={{ fontSize: 17, marginBottom: 2 }}>{z.zoneName}</h3>
+                <span style={{ fontSize: 12, color: 'var(--primary)', fontWeight: 600 }}>Area: Peelamedu</span>
+              </div>
+              <span className="badge badge-resolved">{z.streets.length} Streets</span>
+            </div>
+
+            <div style={{ background: 'var(--bg-surface)', padding: 12, borderRadius: 'var(--radius-sm)', marginBottom: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 13 }}>
+                <div>
+                  <span style={{ color: 'var(--text-dim)', fontSize: 11, textTransform: 'uppercase', display: 'block' }}>Assigned Driver</span>
+                  <strong>{z.driverName}</strong>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-dim)', fontSize: 11, textTransform: 'uppercase', display: 'block' }}>Assigned Vehicle</span>
+                  <strong style={{ color: 'var(--primary)' }}>{z.vehicleId}</strong> ({z.vehiclePlate})
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-dim)', fontSize: 11, textTransform: 'uppercase', display: 'block' }}>Collection Day</span>
+                  <span>{z.scheduleDay}</span>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-dim)', fontSize: 11, textTransform: 'uppercase', display: 'block' }}>Time Slot</span>
+                  <span>{z.timeSlot}</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 8 }}>
+                Streets inside this Zone ({z.streets.length}):
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {z.streets.map((st, i) => (
+                  <div key={st.streetName} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'var(--bg-surface)', borderRadius: 6, fontSize: 13 }}>
+                    <span style={{ width: 20, height: 20, borderRadius: 10, background: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 11 }}>
+                      {i + 1}
+                    </span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600 }}>{st.streetName}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{st.landmark} · {st.housesCount} homes · {st.binType}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Complaint Detail Modal ───────────────────────────────────────────────────
 function ComplaintDetailModal({ complaint, onClose, apiBase }) {
   if (!complaint) return null;
   const { title, category, description, location, priority, status, images,
-          citizen, assignedDriver, timeline, createdAt } = complaint;
+          citizen, assignedDriver, timeline, createdAt, zone, street, area } = complaint;
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" style={{ maxWidth: 620, maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
@@ -255,30 +557,28 @@ function ComplaintDetailModal({ complaint, onClose, apiBase }) {
           <div style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Photo Evidence</div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              {images.map((img, i) => (
-                <a key={i} href={`${apiBase}${img}`} target="_blank" rel="noopener noreferrer">
-                  <img
-                    src={`${apiBase}${img}`}
-                    alt={`Evidence ${i + 1}`}
-                    style={{ width: 140, height: 100, objectFit: 'cover', borderRadius: 10, border: '2px solid var(--border-color)', cursor: 'pointer', transition: 'opacity .2s' }}
-                    onError={e => { e.target.style.display = 'none'; }}
-                    onMouseEnter={e => { e.target.style.opacity = 0.8; }}
-                    onMouseLeave={e => { e.target.style.opacity = 1; }}
-                  />
-                </a>
-              ))}
+              {images.map((img, i) => {
+                const imgSrc = img.startsWith('http') ? img : img;
+                return (
+                  <a key={i} href={imgSrc} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={imgSrc}
+                      alt={`Evidence ${i + 1}`}
+                      style={{ width: 140, height: 100, objectFit: 'cover', borderRadius: 10, border: '2px solid var(--border-color)', cursor: 'pointer', transition: 'opacity .2s' }}
+                      onError={e => { e.target.style.display = 'none'; }}
+                    />
+                  </a>
+                );
+              })}
             </div>
-          </div>
-        )}
-        {(!images || images.length === 0) && (
-          <div style={{ marginBottom: 20, padding: 16, background: 'var(--bg-surface)', borderRadius: 10, textAlign: 'center', color: 'var(--text-dim)', fontSize: 13 }}>
-            📷 No photo evidence uploaded
           </div>
         )}
 
         {/* Details Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
           {[
+            ['Zone', zone || 'Peelamedu – PSG Zone'],
+            ['Street', street || location?.address || '—'],
             ['Category', category || '—'],
             ['Priority', priority || '—'],
             ['Status', status || '—'],
@@ -286,7 +586,7 @@ function ComplaintDetailModal({ complaint, onClose, apiBase }) {
           ].map(([label, val]) => (
             <div key={label} style={{ background: 'var(--bg-surface)', borderRadius: 10, padding: '12px 14px' }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{label}</div>
-              <div style={{ fontSize: 14, color: 'var(--text-main)', fontWeight: 500, textTransform: label === 'Category' || label === 'Priority' || label === 'Status' ? 'capitalize' : 'none' }}>{val}</div>
+              <div style={{ fontSize: 14, color: 'var(--text-main)', fontWeight: 500 }}>{val}</div>
             </div>
           ))}
         </div>
@@ -295,17 +595,6 @@ function ComplaintDetailModal({ complaint, onClose, apiBase }) {
         <div style={{ marginBottom: 16, background: 'var(--bg-surface)', borderRadius: 10, padding: '12px 14px' }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Description</div>
           <p style={{ fontSize: 14, color: 'var(--text-main)', lineHeight: 1.6, margin: 0 }}>{description || '—'}</p>
-        </div>
-
-        {/* Location */}
-        <div style={{ marginBottom: 16, background: 'var(--bg-surface)', borderRadius: 10, padding: '12px 14px' }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>📍 Location</div>
-          <div style={{ fontSize: 14, color: 'var(--text-main)', marginBottom: 4 }}>{location?.address || '—'}</div>
-          {location?.latitude && location?.longitude && (
-            <div style={{ fontSize: 12, color: 'var(--text-dim)', fontFamily: 'monospace' }}>
-              {location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}
-            </div>
-          )}
         </div>
 
         {/* Citizen Info */}
@@ -340,28 +629,6 @@ function ComplaintDetailModal({ complaint, onClose, apiBase }) {
           </div>
         )}
 
-        {/* Timeline */}
-        {timeline && timeline.length > 0 && (
-          <div style={{ marginBottom: 8 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>📋 Timeline</div>
-            <div style={{ position: 'relative', paddingLeft: 20 }}>
-              {timeline.map((t, i) => (
-                <div key={i} style={{ position: 'relative', paddingBottom: i < timeline.length - 1 ? 16 : 0 }}>
-                  {i < timeline.length - 1 && <div style={{ position: 'absolute', left: -13, top: 16, width: 2, bottom: 0, background: 'var(--border-color)' }} />}
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: i === timeline.length - 1 ? 'var(--primary)' : 'var(--border-color)', marginTop: 5, flexShrink: 0, marginLeft: -16 }} />
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)', textTransform: 'capitalize' }}>{t.status?.replace('_', ' ')}</div>
-                      {t.note && <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{t.note}</div>}
-                      {t.time && <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>{new Date(t.time).toLocaleString('en-IN')}</div>}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         <button className="btn btn-outline" style={{ width: '100%', marginTop: 20 }} onClick={onClose}>Close</button>
       </div>
     </div>
@@ -376,10 +643,8 @@ function ComplaintsView({ token }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [updating, setUpdating] = useState(null);
-  const [modal, setModal] = useState(null); // assign driver modal
-  const [detailModal, setDetailModal] = useState(null); // complaint detail modal
-
-  const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
+  const [modal, setModal] = useState(null);
+  const [detailModal, setDetailModal] = useState(null);
 
   const headers = { Authorization: `Bearer ${token}` };
 
@@ -428,14 +693,14 @@ function ComplaintsView({ token }) {
   return (
     <div>
       <div className="header">
-        <div className="header-title"><h1>Complaints Management</h1><p>Monitor and update reported waste issues</p></div>
+        <div className="header-title"><h1>Complaints Management</h1><p>Monitor, prioritize and resolve reported waste issues across Peelamedu zones</p></div>
         <button className="btn btn-outline" onClick={load}><Icon name="refresh" size={15} /> Refresh</button>
       </div>
 
       <div className="toolbar">
         <div className="search-box">
           <Icon name="search" size={16} />
-          <input placeholder="Search complaints..." value={search} onChange={e => setSearch(e.target.value)} />
+          <input placeholder="Search complaints by street, citizen or keyword..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <select className="filter-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           {['all','open','assigned','in_progress','resolved','closed'].map(s => (
@@ -448,7 +713,7 @@ function ComplaintsView({ token }) {
         {loading ? <Spinner /> : (
           <table>
             <thead><tr>
-              <th>ID</th><th>Citizen</th><th>Title</th><th>Location</th>
+              <th>ID</th><th>Citizen</th><th>Zone &amp; Street</th><th>Category</th>
               <th>Priority</th><th>Status</th><th>Assigned Driver</th><th>Actions</th>
             </tr></thead>
             <tbody>
@@ -458,14 +723,14 @@ function ComplaintsView({ token }) {
                 <tr key={c._id}>
                   <td style={{ fontFamily: 'monospace', fontSize: 12 }}>#{c._id.slice(-6).toUpperCase()}</td>
                   <td>
-                    <div style={{ fontWeight: 600 }}>{c.citizen?.name || 'Unknown'}</div>
+                    <div style={{ fontWeight: 600 }}>{c.citizen?.name || 'Citizen'}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{c.citizen?.email}</div>
                   </td>
                   <td>
-                    <div style={{ fontWeight: 600, maxWidth: 180 }}>{c.title}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{c.category}</div>
+                    <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{c.street || c.location?.address || 'Peelamedu'}</div>
+                    <div style={{ fontSize: 12, color: 'var(--primary)' }}>{c.zone || 'Peelamedu – PSG Zone'}</div>
                   </td>
-                  <td style={{ fontSize: 13, color: 'var(--text-muted)' }}>{c.location?.address || '—'}</td>
+                  <td style={{ fontSize: 13, color: 'var(--text-muted)' }}>{c.category}</td>
                   <td><span className={`badge ${c.priority === 'high' ? 'badge-red' : c.priority === 'medium' ? 'badge-pending' : 'badge-dim'}`}>{c.priority}</span></td>
                   <td><Badge status={c.status} /></td>
                   <td style={{ fontSize: 13 }}>{c.assignedDriver?.name || <span style={{ color: 'var(--text-dim)' }}>Unassigned</span>}</td>
@@ -496,7 +761,6 @@ function ComplaintsView({ token }) {
         <ComplaintDetailModal
           complaint={detailModal}
           onClose={() => setDetailModal(null)}
-          apiBase={API_BASE}
         />
       )}
 
@@ -504,7 +768,7 @@ function ComplaintsView({ token }) {
       {modal && (
         <div className="modal-overlay" onClick={() => setModal(null)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
-            <h3 className="card-title">Assign Driver</h3>
+            <h3 className="card-title">Assign Driver to Complaint</h3>
             <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 16 }}>
               Complaint: <strong>{modal.title}</strong>
             </p>
@@ -514,7 +778,7 @@ function ComplaintsView({ token }) {
                   <Icon name="truck" size={16} />
                   <div>
                     <div style={{ fontWeight: 600 }}>{d.name}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{d.vehicleId || 'No vehicle'} · {d.zone || 'No zone'}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{d.vehicleId || 'No vehicle'} · {d.zone || 'Peelamedu Zone'}</div>
                   </div>
                 </button>
               ))}
@@ -528,36 +792,42 @@ function ComplaintsView({ token }) {
   );
 }
 
-// ─── Drivers ──────────────────────────────────────────────────────────────────
+const COMPLAINT_PERIOD_OPTIONS = [
+  { value: '1-months', period: 1, unit: 'months', label: 'Last 1 Month', text: '1 Month' },
+  { value: '3-months', period: 3, unit: 'months', label: 'Last 3 Months', text: '3 Months' },
+  { value: '6-months', period: 6, unit: 'months', label: 'Last 6 Months', text: '6 Months' },
+  { value: '1-years',  period: 1, unit: 'years',  label: 'Last 1 Year',   text: '1 Year' },
+  { value: '2-years',  period: 2, unit: 'years',  label: 'Last 2 Years',  text: '2 Years' },
+];
+
+// ─── Drivers View ─────────────────────────────────────────────────────────────
 function DriversView({ token }) {
   const [drivers, setDrivers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', vehicleId: '', employeeId: '', zone: '', shift: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', vehicleId: '', employeeId: '', zone: 'Peelamedu – PSG Zone', shift: '6:00 AM - 2:00 PM' });
   const [adding, setAdding] = useState(false);
 
-  // — Complaint attendance stats —
-  const [statPeriod, setStatPeriod] = useState(3);
-  const [statUnit, setStatUnit]     = useState('months');
-  const [countMap, setCountMap]     = useState({});
+  // Complaint completion time filter state
+  const [selectedPeriod, setSelectedPeriod] = useState('1-months');
+  const [filterPeriod, setFilterPeriod] = useState(1);
+  const [filterUnit, setFilterUnit] = useState('months');
+  const [filterLabel, setFilterLabel] = useState('Last 1 Month');
+  const [complaintStatsMap, setComplaintStatsMap] = useState({});
   const [statsLoading, setStatsLoading] = useState(false);
-  const [maxCount, setMaxCount]     = useState(1);
 
   const headers = { Authorization: `Bearer ${token}` };
 
-  const loadStats = useCallback(async (period, unit) => {
+  const loadComplaintStats = useCallback(async (period, unit) => {
     setStatsLoading(true);
     try {
-      const res = await api.get('/admin/drivers/complaint-stats', {
-        headers,
-        params: { period, unit },
-      });
-      const map = res.data.countMap || {};
-      setCountMap(map);
-      const vals = Object.values(map);
-      setMaxCount(vals.length > 0 ? Math.max(...vals) : 1);
-    } catch (e) { console.error('Stats load failed', e); }
-    finally { setStatsLoading(false); }
+      const res = await api.get(`/admin/drivers/complaint-stats?period=${period}&unit=${unit}`, { headers });
+      setComplaintStatsMap(res.data?.countMap || {});
+    } catch (e) {
+      console.error('Failed to load driver complaint stats:', e);
+    } finally {
+      setStatsLoading(false);
+    }
   }, [token]);
 
   const load = useCallback(async () => {
@@ -565,12 +835,24 @@ function DriversView({ token }) {
     try {
       const res = await api.get('/admin/drivers', { headers });
       setDrivers(res.data);
+      await loadComplaintStats(filterPeriod, filterUnit);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
-  }, [token]);
+  }, [token, filterPeriod, filterUnit, loadComplaintStats]);
 
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { loadStats(statPeriod, statUnit); }, [loadStats, statPeriod, statUnit]);
+
+  const handlePeriodDropdownChange = (e) => {
+    const val = e.target.value;
+    setSelectedPeriod(val);
+    const opt = COMPLAINT_PERIOD_OPTIONS.find(o => o.value === val);
+    if (opt) {
+      setFilterPeriod(opt.period);
+      setFilterUnit(opt.unit);
+      setFilterLabel(opt.label);
+      loadComplaintStats(opt.period, opt.unit);
+    }
+  };
 
   const addDriver = async (e) => {
     e.preventDefault();
@@ -578,30 +860,82 @@ function DriversView({ token }) {
     try {
       await api.post('/admin/drivers', form, { headers });
       setShowAdd(false);
-      setForm({ name: '', email: '', password: '', phone: '', vehicleId: '', employeeId: '', zone: '', shift: '' });
+      setForm({ name: '', email: '', password: '', phone: '', vehicleId: '', employeeId: '', zone: 'Peelamedu – PSG Zone', shift: '6:00 AM - 2:00 PM' });
       load();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to add driver');
     } finally { setAdding(false); }
   };
 
-  const periodOptions = statUnit === 'months' ? [1, 2, 3, 6, 9, 12, 18, 24] : [1, 2, 3, 5];
+  const totalResolvedInPeriod = Object.values(complaintStatsMap).reduce((a, b) => a + b, 0);
+  const avgPerDriver = drivers.length > 0 ? (totalResolvedInPeriod / drivers.length).toFixed(1) : '0';
+  const maxDriverCount = Math.max(1, ...Object.values(complaintStatsMap));
+
+  const driverStatsList = drivers.map(d => {
+    const count = complaintStatsMap[d._id] ?? 0;
+    const share = totalResolvedInPeriod > 0 ? ((count / totalResolvedInPeriod) * 100).toFixed(1) : 0;
+    let status = 'balanced';
+    let statusLabel = 'Balanced Workload';
+    let recommendation = 'Even workload';
+    const fleetAvg = drivers.length > 0 ? (totalResolvedInPeriod / drivers.length) : 0;
+    if (count > fleetAvg * 1.25 && count > 0) {
+      status = 'heavy';
+      statusLabel = 'Heavy Workload ⚠️';
+      recommendation = 'Reduce new assignments';
+    } else if (count < fleetAvg * 0.75) {
+      status = 'light';
+      statusLabel = 'Light Workload ℹ️';
+      recommendation = 'Assign upcoming complaints';
+    }
+    return { ...d, count, share, status, statusLabel, recommendation };
+  });
+
+  const heavyDriver = driverStatsList.find(d => d.status === 'heavy');
+  const lightDriver = driverStatsList.find(d => d.status === 'light');
+
 
   return (
     <div>
       <div className="header">
-        <div className="header-title"><h1>Driver Fleet</h1><p>Manage drivers and vehicle assignments</p></div>
+        <div className="header-title">
+          <h1>Driver Fleet</h1>
+          <p>Manage drivers and vehicle assignments</p>
+        </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button className="btn btn-outline" onClick={load}><Icon name="refresh" size={15} /> Refresh</button>
           <button className="btn" onClick={() => setShowAdd(!showAdd)}><Icon name="plus" size={15} /> Add Driver</button>
         </div>
       </div>
 
+      {/* Compact filter bar */}
+      <div className="card" style={{ marginBottom: 16, padding: '14px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)' }}>📋 Complaints Attended In:</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <select
+              className="filter-select"
+              value={selectedPeriod}
+              onChange={handlePeriodDropdownChange}
+              style={{ minWidth: 140, padding: '6px 12px', fontSize: 13, fontWeight: 600 }}
+            >
+              {COMPLAINT_PERIOD_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.text}
+                </option>
+              ))}
+            </select>
+          </div>
+          <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>
+            Resolved / closed complaints per driver · {filterLabel}
+          </span>
+        </div>
+      </div>
+
       {showAdd && (
-        <div className="card" style={{ marginBottom: 24 }}>
-          <h3 className="card-title">Add New Driver</h3>
+        <div className="card" style={{ marginBottom: 16 }}>
+          <h3 className="card-title">Add New Driver to Zone</h3>
           <form onSubmit={addDriver} className="add-form">
-            {[['name','Full Name'],['email','Email'],['password','Password'],['phone','Phone'],['vehicleId','Vehicle ID'],['employeeId','Employee ID'],['zone','Zone'],['shift','Shift']].map(([k,l]) => (
+            {[['name','Full Name'],['email','Email'],['password','Password'],['phone','Phone'],['vehicleId','Vehicle ID'],['employeeId','Employee ID'],['zone','Peelamedu Zone'],['shift','Shift']].map(([k,l]) => (
               <div key={k} className="form-group">
                 <label>{l}</label>
                 <input type={k==='password'?'password':'text'} value={form[k]} onChange={e => setForm(p => ({...p,[k]:e.target.value}))} placeholder={l} required={['name','email','password'].includes(k)} />
@@ -615,127 +949,69 @@ function DriversView({ token }) {
         </div>
       )}
 
-      {/* — Complaints Attended Period Selector — */}
-      <div className="card" style={{ marginBottom: 20, padding: '14px 20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-            📋 Complaints Attended In:
-          </div>
-
-          <select
-            className="filter-select"
-            style={{ minWidth: 80 }}
-            value={statPeriod}
-            onChange={e => setStatPeriod(parseInt(e.target.value))}
-          >
-            {periodOptions.map(n => <option key={n} value={n}>{n}</option>)}
-          </select>
-
-          <div style={{ display: 'flex', background: 'var(--bg-surface)', borderRadius: 8, border: '1px solid var(--border-color)', overflow: 'hidden' }}>
-            {['months', 'years'].map(u => (
-              <button
-                key={u}
-                onClick={() => { setStatUnit(u); setStatPeriod(u === 'months' ? 3 : 1); }}
-                style={{
-                  padding: '6px 14px', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer',
-                  background: statUnit === u ? 'var(--primary)' : 'transparent',
-                  color: statUnit === u ? '#fff' : 'var(--text-dim)',
-                  transition: 'all .2s',
-                }}
-              >
-                {u.charAt(0).toUpperCase() + u.slice(1)}
-              </button>
-            ))}
-          </div>
-
-          {statsLoading && <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>Updating…</span>}
-          {!statsLoading && (
-            <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>
-              Resolved / closed complaints per driver · last {statPeriod} {statUnit}
-            </span>
-          )}
-        </div>
-      </div>
-
+      {/* Driver Fleet Table */}
       <div className="card">
         {loading ? <Spinner /> : (
           <table>
             <thead><tr>
-              <th>Driver</th><th>Employee ID</th><th>Assigned Vehicle</th><th>Zone</th><th>Shift</th><th>Today&apos;s Route</th><th>Stops</th>
-              <th style={{ whiteSpace: 'nowrap' }}>
-                Complaints Attended
-                <span style={{ display: 'block', fontSize: 10, fontWeight: 400, color: 'var(--text-dim)', marginTop: 2 }}>
-                  Last {statPeriod} {statUnit}
-                </span>
-              </th>
+              <th>Driver</th>
+              <th>Employee ID</th>
+              <th>Assigned Vehicle</th>
+              <th>Zone</th>
+              <th>Shift</th>
+              <th>Today&apos;s Route</th>
+              <th>Stops</th>
+              <th>Complaints Attended<br /><span style={{ fontWeight: 400, fontSize: 11, color: 'var(--text-dim)', textTransform: 'none' }}>{filterLabel}</span></th>
             </tr></thead>
             <tbody>
-              {drivers.length === 0 ? (
+              {driverStatsList.length === 0 ? (
                 <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: 32 }}>No drivers registered yet</td></tr>
-              ) : drivers.map(d => {
+              ) : driverStatsList.map(d => {
                 const done  = d.route?.stops?.filter(s => s.status === 'completed').length || 0;
                 const total = d.route?.stops?.length || 0;
                 const veh   = d.assignedVehicle;
-                const attended = countMap[d._id.toString()] || 0;
-                const barPct   = maxCount > 0 ? Math.round((attended / maxCount) * 100) : 0;
-                const badgeCls = attended >= 10 ? 'badge-resolved'
-                               : attended >= 5  ? 'badge-in_progress'
-                               : attended >= 1  ? 'badge-blue'
-                               : 'badge-dim';
+                const barWidth = maxDriverCount > 0 ? Math.round((d.count / maxDriverCount) * 100) : 0;
+                const barColor = d.status === 'heavy' ? 'var(--accent-amber)' : d.status === 'light' ? 'var(--accent-blue)' : 'var(--primary)';
                 return (
                   <tr key={d._id}>
                     <td>
                       <div style={{ fontWeight: 600 }}>{d.name}</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{d.email}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{d.email}</div>
                     </td>
-                    <td style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{d.employeeId || '—'}</td>
+                    <td style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--text-muted)' }}>{d.employeeId || '—'}</td>
                     <td>
                       {veh ? (
                         <div>
                           <div style={{ fontWeight: 600, fontSize: 13 }}>{VEHICLE_TYPES[veh.type]?.emoji} {veh.vehicleId}</div>
-                          <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{VEHICLE_TYPES[veh.type]?.label} · {veh.plateNumber}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{veh.plateNumber}</div>
                         </div>
                       ) : (
-                        <span style={{ color: 'var(--text-dim)' }}>{d.vehicleId || 'Unassigned'}</span>
+                        <span style={{ color: 'var(--text-dim)', fontSize: 13 }}>{d.vehicleId || '—'}</span>
                       )}
                     </td>
-                    <td>{d.zone || '—'}</td>
-                    <td style={{ color: 'var(--text-muted)' }}>{d.shift || '—'}</td>
+                    <td style={{ color: 'var(--text-main)', fontSize: 13 }}>{d.zone || 'Peelamedu – PSG Zone'}</td>
+                    <td style={{ color: 'var(--text-muted)', fontSize: 12, whiteSpace: 'nowrap' }}>{d.shift || '—'}</td>
                     <td><Badge status={d.route?.status || 'no route'} /></td>
                     <td>
                       {total > 0 ? (
                         <div>
-                          <div style={{ fontWeight: 600, color: 'var(--primary)' }}>{done}/{total}</div>
-                          <div className="mini-bar"><div className="mini-fill" style={{ width: `${total > 0 ? (done/total)*100 : 0}%` }} /></div>
+                          <div style={{ fontWeight: 600, fontSize: 13 }}>{done}/{total}</div>
+                          <div className="mini-bar" style={{ marginTop: 4 }}><div className="mini-fill" style={{ width: `${total > 0 ? (done/total)*100 : 0}%` }} /></div>
                         </div>
-                      ) : '—'}
+                      ) : <span style={{ color: 'var(--text-dim)' }}>—</span>}
                     </td>
-
-                    {/* — Complaints Attended column — */}
                     <td>
-                      {statsLoading ? (
-                        <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>…</span>
-                      ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 90 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span className={`badge ${badgeCls}`} style={{ fontSize: 13, fontWeight: 700, minWidth: 32, textAlign: 'center' }}>
-                              {attended}
-                            </span>
-                            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{attended === 1 ? 'resolved' : 'resolved'}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontSize: 18, fontWeight: 800, color: barColor }}>{statsLoading ? '…' : d.count}</span>
+                            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>resolved</span>
                           </div>
-                          <div className="mini-bar" style={{ width: 80 }}>
-                            <div
-                              className="mini-fill"
-                              style={{
-                                width: `${barPct}%`,
-                                background: attended >= 10 ? 'var(--primary)'
-                                          : attended >= 5  ? 'var(--accent-amber)'
-                                          : 'var(--accent-blue)',
-                              }}
-                            />
+                          <div style={{ width: 80, height: 4, borderRadius: 2, background: 'var(--border-color)', marginTop: 4, overflow: 'hidden' }}>
+                            <div style={{ width: `${barWidth}%`, height: '100%', background: barColor, borderRadius: 2 }} />
                           </div>
                         </div>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -748,14 +1024,14 @@ function DriversView({ token }) {
   );
 }
 
-// ─── Vehicles ─────────────────────────────────────────────────────────────────
+// ─── Vehicles View ────────────────────────────────────────────────────────────
 function VehiclesView({ token }) {
   const [vehicles, setVehicles] = useState([]);
   const [drivers, setDrivers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [assignModal, setAssignModal] = useState(null);
-  const [form, setForm] = useState({ vehicleId: '', type: 'garbage_truck', plateNumber: '', capacity: '', currentArea: 'Peelamedu', notes: '' });
+  const [form, setForm] = useState({ vehicleId: '', type: 'garbage_truck', plateNumber: '', capacity: '', currentArea: 'Peelamedu – PSG Zone', notes: '' });
   const [adding, setAdding] = useState(false);
   const [updating, setUpdating] = useState(null);
   const headers = { Authorization: `Bearer ${token}` };
@@ -823,15 +1099,12 @@ function VehiclesView({ token }) {
     } catch (e) { alert('Delete failed'); }
   };
 
-  const activeCount = vehicles.filter(v => v.status === 'active').length;
-  const maintCount = vehicles.filter(v => v.status === 'maintenance').length;
-
   return (
     <div>
       <div className="header">
         <div className="header-title">
-          <h1>Vehicle & Machinery Fleet</h1>
-          <p>{vehicles.length} vehicles · {activeCount} active · {maintCount} in maintenance</p>
+          <h1>Vehicle &amp; Machinery Fleet</h1>
+          <p>{vehicles.length} vehicles assigned across Peelamedu zones</p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button className="btn btn-outline" onClick={load}><Icon name="refresh" size={15} /> Refresh</button>
@@ -839,19 +1112,9 @@ function VehiclesView({ token }) {
         </div>
       </div>
 
-      {/* Vehicle Type Legend */}
-      <div className="vehicle-legend">
-        {Object.entries(VEHICLE_TYPES).map(([key, { label, emoji, color }]) => (
-          <div key={key} className="vehicle-legend-item">
-            <span className="vehicle-legend-emoji">{emoji}</span>
-            <span style={{ color }}>{label}</span>
-          </div>
-        ))}
-      </div>
-
       {showAdd && (
         <div className="card" style={{ marginBottom: 24 }}>
-          <h3 className="card-title">Add New Vehicle / Machinery</h3>
+          <h3 className="card-title">Add New Vehicle</h3>
           <form onSubmit={addVehicle} className="add-form">
             <div className="form-group">
               <label>Vehicle ID</label>
@@ -874,8 +1137,8 @@ function VehiclesView({ token }) {
               <input value={form.capacity} onChange={e => setForm(p => ({...p, capacity: e.target.value}))} placeholder="5 Tonnes" />
             </div>
             <div className="form-group">
-              <label>Deployed Area</label>
-              <input value={form.currentArea} onChange={e => setForm(p => ({...p, currentArea: e.target.value}))} placeholder="Peelamedu" />
+              <label>Deployed Zone (Peelamedu)</label>
+              <input value={form.currentArea} onChange={e => setForm(p => ({...p, currentArea: e.target.value}))} placeholder="Peelamedu – PSG Zone" />
             </div>
             <div className="form-group">
               <label>Notes</label>
@@ -893,7 +1156,7 @@ function VehiclesView({ token }) {
         {loading ? <Spinner /> : (
           <table>
             <thead><tr>
-              <th>Vehicle</th><th>Type</th><th>Plate</th><th>Capacity</th><th>Area</th><th>Status</th><th>Assigned Driver</th><th>Actions</th>
+              <th>Vehicle</th><th>Type</th><th>Plate</th><th>Capacity</th><th>Deployed Zone</th><th>Status</th><th>Assigned Driver</th><th>Actions</th>
             </tr></thead>
             <tbody>
               {vehicles.length === 0 ? (
@@ -903,9 +1166,7 @@ function VehiclesView({ token }) {
                 const vs = VEHICLE_STATUS[v.status] || VEHICLE_STATUS.inactive;
                 return (
                   <tr key={v._id}>
-                    <td>
-                      <div style={{ fontWeight: 700, fontSize: 14 }}>{v.vehicleId}</div>
-                    </td>
+                    <td><div style={{ fontWeight: 700, fontSize: 14 }}>{v.vehicleId}</div></td>
                     <td>
                       <div className="vehicle-type-chip" style={{ '--vt-color': vt.color }}>
                         <span style={{ fontSize: 16 }}>{vt.emoji}</span>
@@ -914,7 +1175,7 @@ function VehiclesView({ token }) {
                     </td>
                     <td style={{ fontFamily: 'monospace', fontSize: 13 }}>{v.plateNumber}</td>
                     <td style={{ color: 'var(--text-muted)' }}>{v.capacity || '—'}</td>
-                    <td style={{ fontSize: 13, maxWidth: 160 }}>{v.currentArea || '—'}</td>
+                    <td style={{ fontSize: 13 }}>{v.currentArea || 'Peelamedu'}</td>
                     <td><span className={`badge ${vs.cls}`}>{vs.label}</span></td>
                     <td>
                       {v.assignedDriver ? (
@@ -924,7 +1185,6 @@ function VehiclesView({ token }) {
                           </div>
                           <div>
                             <div style={{ fontWeight: 600, fontSize: 13 }}>{v.assignedDriver.name}</div>
-                            <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{v.assignedDriver.phone || v.assignedDriver.email}</div>
                           </div>
                         </div>
                       ) : (
@@ -934,18 +1194,15 @@ function VehiclesView({ token }) {
                     <td>
                       <div className="action-btns">
                         {v.assignedDriver ? (
-                          <button className="btn btn-sm btn-outline" onClick={() => unassignDriver(v._id)} disabled={updating === v._id} title="Unassign driver">Unassign</button>
+                          <button className="btn btn-sm btn-outline" onClick={() => unassignDriver(v._id)} disabled={updating === v._id}>Unassign</button>
                         ) : (
                           <button className="btn btn-sm btn-blue" onClick={() => setAssignModal(v)} disabled={updating === v._id}>Assign</button>
                         )}
                         {v.status === 'active' && (
-                          <button className="btn btn-sm btn-amber" onClick={() => updateStatus(v._id, 'maintenance')} disabled={updating === v._id}>🔧</button>
+                          <button className="btn btn-sm btn-amber" onClick={() => updateStatus(v._id, 'maintenance')}>🔧</button>
                         )}
                         {v.status === 'maintenance' && (
-                          <button className="btn btn-sm" onClick={() => updateStatus(v._id, 'active')} disabled={updating === v._id}>✅</button>
-                        )}
-                        {v.status === 'inactive' && (
-                          <button className="btn btn-sm" onClick={() => updateStatus(v._id, 'active')} disabled={updating === v._id}>Activate</button>
+                          <button className="btn btn-sm" onClick={() => updateStatus(v._id, 'active')}>✅</button>
                         )}
                         <button className="btn btn-sm btn-red" onClick={() => deleteVehicle(v._id)}><Icon name="trash" size={13} /></button>
                       </div>
@@ -967,7 +1224,7 @@ function VehiclesView({ token }) {
               <span style={{ fontSize: 24 }}>{VEHICLE_TYPES[assignModal.type]?.emoji}</span>
               <div>
                 <div style={{ fontWeight: 700, color: '#fff' }}>{assignModal.vehicleId}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{VEHICLE_TYPES[assignModal.type]?.label} · {assignModal.plateNumber}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{assignModal.plateNumber}</div>
               </div>
             </div>
             <div className="driver-list">
@@ -976,11 +1233,10 @@ function VehiclesView({ token }) {
                   <Icon name="drivers" size={16} />
                   <div>
                     <div style={{ fontWeight: 600 }}>{d.name}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{d.employeeId || d.email} · {d.zone || 'No zone'}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{d.zone || 'Peelamedu'}</div>
                   </div>
                 </button>
               ))}
-              {drivers.length === 0 && <p style={{ color: 'var(--text-dim)' }}>No drivers registered yet</p>}
             </div>
             <button className="btn btn-outline" style={{ width: '100%', marginTop: 12 }} onClick={() => setAssignModal(null)}>Cancel</button>
           </div>
@@ -990,7 +1246,7 @@ function VehiclesView({ token }) {
   );
 }
 
-// ─── Citizens ─────────────────────────────────────────────────────────────────
+// ─── Citizens View ────────────────────────────────────────────────────────────
 function CitizensView({ token }) {
   const [citizens, setCitizens] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1003,21 +1259,23 @@ function CitizensView({ token }) {
   return (
     <div>
       <div className="header">
-        <div className="header-title"><h1>Citizens</h1><p>All registered citizen accounts</p></div>
+        <div className="header-title"><h1>Registered Citizens</h1><p>Citizen distribution across Peelamedu zones and streets</p></div>
       </div>
       <div className="card">
         {loading ? <Spinner /> : (
           <table>
-            <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Area</th><th>Joined</th></tr></thead>
+            <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Street</th><th>Zone</th><th>Area</th><th>Joined</th></tr></thead>
             <tbody>
               {citizens.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: 32 }}>No citizens registered yet</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: 32 }}>No citizens registered yet</td></tr>
               ) : citizens.map(c => (
                 <tr key={c._id}>
                   <td style={{ fontWeight: 600 }}>{c.name}</td>
                   <td style={{ color: 'var(--text-muted)' }}>{c.email}</td>
                   <td style={{ color: 'var(--text-muted)' }}>{c.phone || '—'}</td>
-                  <td>{c.area || '—'}</td>
+                  <td style={{ fontWeight: 600 }}>{c.street || 'PSG Tech College Road'}</td>
+                  <td style={{ color: 'var(--primary)' }}>{c.zone || 'Peelamedu – PSG Zone'}</td>
+                  <td>{c.area || 'Peelamedu'}</td>
                   <td style={{ color: 'var(--text-dim)', fontSize: 13 }}>{new Date(c.createdAt).toLocaleDateString('en-IN')}</td>
                 </tr>
               ))}
@@ -1029,7 +1287,7 @@ function CitizensView({ token }) {
   );
 }
 
-// ─── Routes ───────────────────────────────────────────────────────────────────
+// ─── Routes View ──────────────────────────────────────────────────────────────
 function RoutesView({ token }) {
   const [routes, setRoutes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1048,7 +1306,7 @@ function RoutesView({ token }) {
   useEffect(() => { load(); }, [load]);
 
   const resetRoutes = async () => {
-    if (!window.confirm('Delete all of today\'s routes? Each driver will get a fresh route automatically when they next open the app.')) return;
+    if (!window.confirm('Delete all of today\'s routes? Each driver will get a fresh zone route on next login.')) return;
     setResetting(true);
     try {
       const res = await api.delete('/admin/routes/today', { headers });
@@ -1063,8 +1321,8 @@ function RoutesView({ token }) {
     <div>
       <div className="header">
         <div className="header-title">
-          <h1>Today&apos;s Routes</h1>
-          <p>All active collection routes for {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+          <h1>Today&apos;s Street-by-Street Routes</h1>
+          <p>Active garbage collection routes across Peelamedu zones for {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button className="btn btn-outline" onClick={load}><Icon name="refresh" size={15} /> Refresh</button>
@@ -1078,15 +1336,12 @@ function RoutesView({ token }) {
           </button>
         </div>
       </div>
-      <div className="card" style={{ marginBottom: 12, padding: '10px 16px', fontSize: 13, color: 'var(--text-dim)', background: 'var(--bg-surface)', borderLeft: '3px solid var(--primary)' }}>
-        ℹ️ Each driver automatically gets their own zone-specific route when they open the app. Use <strong>Reset All Routes</strong> to regenerate fresh routes for all drivers.
-      </div>
       <div className="card">
         {loading ? <Spinner /> : routes.length === 0 ? (
-          <p className="empty-msg">No routes created today yet. Routes auto-generate when a driver logs in.</p>
+          <p className="empty-msg">No active routes yet today. Routes generate when drivers log in.</p>
         ) : (
           <table>
-            <thead><tr><th>Driver</th><th>Vehicle ID</th><th>Zone</th><th>Status</th><th>Progress</th><th>Total Stops</th><th>Started</th></tr></thead>
+            <thead><tr><th>Zone</th><th>Driver</th><th>Vehicle</th><th>Status</th><th>Street Progress</th><th>Total Streets</th><th>Started</th></tr></thead>
             <tbody>
               {routes.map(r => {
                 const done = r.stops?.filter(s => s.status === 'completed').length || 0;
@@ -1094,14 +1349,16 @@ function RoutesView({ token }) {
                 return (
                   <tr key={r._id}>
                     <td>
-                      <div style={{ fontWeight: 600 }}>{r.driver?.name || 'Unknown'}</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{r.driver?.vehicleId || r.vehicleId}</div>
+                      <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{r.zoneName || 'Peelamedu – PSG Zone'}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>Area: Peelamedu</div>
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: 600 }}>{r.driver?.name || 'Driver'}</div>
                     </td>
                     <td style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--primary)' }}>{r.vehicleId}</td>
-                    <td style={{ fontSize: 13, color: 'var(--text-muted)' }}>{r.stops?.[0]?.area || '—'}</td>
                     <td><Badge status={r.status} /></td>
                     <td>
-                      <div style={{ fontWeight: 600 }}>{done}/{total}</div>
+                      <div style={{ fontWeight: 600 }}>{done}/{total} streets</div>
                       <div className="mini-bar"><div className="mini-fill" style={{ width: `${total > 0 ? (done/total)*100 : 0}%` }} /></div>
                     </td>
                     <td>{total}</td>
@@ -1163,6 +1420,8 @@ export default function App() {
         </div>
         <nav>
           <SideLink to="/" icon="dashboard" label="Dashboard" end />
+          <SideLink to="/hotspots" icon="hotspot" label="Hotspot Analysis" />
+          <SideLink to="/zones" icon="zones" label="Zones & Streets" />
           <SideLink to="/complaints" icon="complaints" label="Complaints" />
           <SideLink to="/vehicles" icon="vehicles" label="Vehicles" />
           <SideLink to="/drivers" icon="drivers" label="Drivers" />
@@ -1177,6 +1436,8 @@ export default function App() {
       <main>
         <Routes>
           <Route path="/" element={<DashboardView token={token} />} />
+          <Route path="/hotspots" element={<HotspotAnalysisView token={token} />} />
+          <Route path="/zones" element={<ZonesView token={token} />} />
           <Route path="/complaints" element={<ComplaintsView token={token} />} />
           <Route path="/vehicles" element={<VehiclesView token={token} />} />
           <Route path="/drivers" element={<DriversView token={token} />} />

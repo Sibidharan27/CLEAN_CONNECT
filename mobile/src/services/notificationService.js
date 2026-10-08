@@ -2,19 +2,62 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { authRequest } from './api';
 
-// ─── Configure foreground notification display (safe across Expo versions) ───
+// ─── Configure foreground notification display ────────────────────────────────
+// Only use supported properties — shouldShowBanner/shouldShowList are not
+// valid across all Expo SDK versions and cause silent failures on Android.
 try {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
       shouldPlaySound: true,
       shouldSetBadge: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
     }),
   });
 } catch (e) {
-  // Silent fallback for environments where NotificationHandler is restricted
+  // Silent fallback for restricted environments
+}
+
+// ─── Android channel setup (idempotent — safe to call multiple times) ────────
+let _channelsReady = false;
+export async function setupAndroidChannel() {
+  if (Platform.OS !== 'android') return;
+  if (_channelsReady) return;
+  try {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'CleanConnect+ Alerts',
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#2E7D32',
+      sound: 'default',
+      enableVibrate: true,
+      showBadge: true,
+    });
+
+    await Notifications.setNotificationChannelAsync('truck', {
+      name: 'Truck Nearby Alerts',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 500, 250, 500],
+      lightColor: '#FFC107',
+      sound: 'default',
+      enableVibrate: true,
+      showBadge: true,
+    });
+
+    await Notifications.setNotificationChannelAsync('complaints', {
+      name: 'Complaint Updates',
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#2196F3',
+      sound: 'default',
+      enableVibrate: true,
+      showBadge: true,
+    });
+
+    _channelsReady = true;
+  } catch (e) {
+    // Channel setup optional on some emulators — non-fatal
+    console.warn('Android channel setup failed:', e.message);
+  }
 }
 
 // ─── Permissions ──────────────────────────────────────────────────────────────
@@ -35,7 +78,6 @@ export async function requestNotificationPermissions() {
 
     return status === 'granted';
   } catch {
-    // Non-fatal error
     return false;
   }
 }
@@ -47,9 +89,14 @@ export const markRead = (id) => authRequest(`/notifications/${id}/read`, { metho
 export const markAllRead = () => authRequest('/notifications/read-all', { method: 'PATCH' }).catch(() => ({}));
 
 // ─── Fire a local push notification immediately ───────────────────────────────
-export async function sendLocalNotification(title, body, data = {}) {
+export async function sendLocalNotification(title, body, data = {}, channelId = 'default') {
   try {
     if (Platform.OS === 'web') return;
+
+    // Ensure Android channels are ready before sending
+    if (Platform.OS === 'android') {
+      await setupAndroidChannel();
+    }
 
     const granted = await requestNotificationPermissions();
     if (!granted) return;
@@ -58,39 +105,15 @@ export async function sendLocalNotification(title, body, data = {}) {
       content: {
         title,
         body,
-        sound: true,
+        sound: 'default',
         data,
-        ...(Platform.OS === 'android' && { channelId: 'truck' }),
+        ...(Platform.OS === 'android' && { channelId }),
       },
       trigger: null, // fire immediately
     });
-  } catch {
+  } catch (e) {
     // Suppress notification scheduler errors in dev/emulator
-  }
-}
-
-// ─── Set up Android notification channels ─────────────────────────────────────
-export async function setupAndroidChannel() {
-  if (Platform.OS === 'android') {
-    try {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'CleanConnect+ Alerts',
-        importance: Notifications.AndroidImportance.HIGH,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#2E7D32',
-        sound: true,
-      });
-
-      await Notifications.setNotificationChannelAsync('truck', {
-        name: 'Truck Nearby Alerts',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 500, 250, 500],
-        lightColor: '#FFC107',
-        sound: true,
-      });
-    } catch {
-      // Channel setup is optional on some Android emulators
-    }
+    console.warn('sendLocalNotification error:', e.message);
   }
 }
 
@@ -105,7 +128,8 @@ export async function sendTruckNearbyAlert(distanceKm) {
       await sendLocalNotification(
         '🚛 Truck is Almost Here!',
         'The garbage collection truck is less than 500m away. Please have your bin ready at the gate!',
-        { type: 'truck_nearby', distance: distanceKm }
+        { type: 'truck_nearby', distance: distanceKm },
+        'truck'
       );
     }
   } else if (distanceKm <= 1.5) {
@@ -114,7 +138,8 @@ export async function sendTruckNearbyAlert(distanceKm) {
       await sendLocalNotification(
         '🚛 Truck Nearby',
         `The garbage truck is about ${Math.round(distanceKm * 1000)}m away. Get ready!`,
-        { type: 'truck_nearby', distance: distanceKm }
+        { type: 'truck_nearby', distance: distanceKm },
+        'truck'
       );
     }
   } else {
@@ -122,12 +147,23 @@ export async function sendTruckNearbyAlert(distanceKm) {
   }
 }
 
+// ─── Complaint status update notification ─────────────────────────────────────
+export async function sendComplaintUpdateNotification(title, body) {
+  await sendLocalNotification(title, body, { type: 'complaint_update' }, 'complaints');
+}
+
+// ─── Collection schedule notification ────────────────────────────────────────
+export async function sendCollectionNotification(title, body) {
+  await sendLocalNotification(title, body, { type: 'collection_schedule' }, 'default');
+}
+
 // ─── Manual test notification (for dev/debug) ─────────────────────────────────
 export async function sendTestNotification() {
   await sendLocalNotification(
     '🚛 Test: Truck Nearby Alert',
     'This is a test notification from CleanConnect+. Truck is 300m away!',
-    { type: 'test' }
+    { type: 'test' },
+    'truck'
   );
 }
 

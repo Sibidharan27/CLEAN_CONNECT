@@ -1,14 +1,14 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Animated,
   Dimensions,
   RefreshControl,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -57,8 +57,6 @@ const getGreeting = () => {
 
 const HomeScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const headerOpacity = scrollY.interpolate({ inputRange: [0, 60], outputRange: [1, 0.8] });
   const { user } = useAuth();
   const { unreadCount } = useNotifications();
 
@@ -96,17 +94,24 @@ const HomeScreen = ({ navigation }) => {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <Animated.View style={{ opacity: headerOpacity }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />}
+      >
+        {/* Header (now inside scroll — scrolls naturally) */}
         <LinearGradient colors={Colors.gradientDark} style={styles.header}>
           <View style={styles.headerCircle} />
           <View style={styles.headerCircle2} />
           <View style={styles.headerTop}>
-            <View>
+            <View style={{ flex: 1, marginRight: 10 }}>
               <Text style={styles.greeting}>{getGreeting()}</Text>
-              <Text style={styles.userName}>{user?.name || 'Welcome'}</Text>
+              <Text style={styles.userName}>{user?.name || 'Citizen'}</Text>
               <View style={styles.areaChip}>
-                <MaterialCommunityIcons name="map-marker" size={12} color="rgba(255,255,255,0.8)" />
-                <Text style={styles.areaText}>{user?.area || 'Zone A'}</Text>
+                <MaterialCommunityIcons name="map-marker-radius" size={13} color="rgba(255,255,255,0.9)" />
+                <Text style={styles.areaText}>
+                  {user?.street ? `${user.street} • ` : ''}{user?.zone || 'Peelamedu – PSG Zone'}
+                </Text>
               </View>
             </View>
             <TouchableOpacity style={styles.notifBtn} onPress={() => navigation.navigate('Notifications')}>
@@ -125,139 +130,135 @@ const HomeScreen = ({ navigation }) => {
               <View style={styles.collectionIconBg}>
                 <MaterialCommunityIcons name="truck-fast" size={22} color={Colors.primary} />
               </View>
-              <View>
-                <Text style={styles.collectionLabel}>Today's Collection</Text>
-                <Text style={styles.collectionTime}>
-                  {nextCollection?.isToday ? nextCollection.timeSlot : 'Tap to track truck'}
+              <View style={{ flex: 1 }}>
+                <Text style={styles.collectionLabel}>
+                  {nextCollection?.isToday ? 'Collection Active Today' : 'Upcoming Street Collection'}
+                </Text>
+                <Text style={styles.collectionTime} numberOfLines={1}>
+                  {nextCollection?.timeSlot || '7:00 AM - 10:00 AM'} • {user?.street || 'Your Street'}
                 </Text>
               </View>
             </View>
-            <View style={styles.etaChip}>
-              <MaterialCommunityIcons name="timer-outline" size={12} color={Colors.primary} />
-              <Text style={styles.etaText}>Track</Text>
-            </View>
+            <MaterialCommunityIcons name="chevron-right" size={22} color={Colors.primary} style={{ marginLeft: 8 }} />
           </TouchableOpacity>
         </LinearGradient>
-      </Animated.View>
 
-      <Animated.ScrollView
-        showsVerticalScrollIndicator={false}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
-        scrollEventThrottle={16}
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />}
-      >
-        {/* Stats */}
-        <View style={styles.statsRow}>
-          <View style={[styles.statCard, Shadows.sm]}>
-            <View style={[styles.statIcon, { backgroundColor: Colors.primary + '15' }]}>
-              <MaterialCommunityIcons name="clipboard-list-outline" size={20} color={Colors.primary} />
-            </View>
-            <Text style={styles.statValue}>{loading ? '—' : stats.total}</Text>
-            <Text style={styles.statLabel}>Complaints</Text>
-          </View>
-          <View style={[styles.statCard, Shadows.sm]}>
-            <View style={[styles.statIcon, { backgroundColor: Colors.success + '15' }]}>
-              <MaterialCommunityIcons name="check-circle-outline" size={20} color={Colors.success} />
-            </View>
-            <Text style={styles.statValue}>{loading ? '—' : stats.resolved}</Text>
-            <Text style={styles.statLabel}>Resolved</Text>
-          </View>
-          <View style={[styles.statCard, Shadows.sm]}>
-            <View style={[styles.statIcon, { backgroundColor: Colors.warning + '15' }]}>
-              <MaterialCommunityIcons name="clock-outline" size={20} color={Colors.warning} />
-            </View>
-            <Text style={styles.statValue}>{loading ? '—' : stats.pending}</Text>
-            <Text style={styles.statLabel}>Pending</Text>
-          </View>
-        </View>
-
-        {/* Quick Actions */}
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <View style={styles.quickActionsGrid}>
-          {QUICK_ACTIONS.map((action, i) => (
-            <QuickActionCard
-              key={action.id}
-              action={action}
-              delay={i * 80}
-              onPress={() => navigation.navigate(action.route)}
-            />
-          ))}
-        </View>
-
-        {/* Next Collection Banner */}
-        {nextCollection && (
-          <TouchableOpacity style={[styles.nearbyBanner, Shadows.md]} onPress={() => navigation.navigate('CollectionSchedule')} activeOpacity={0.9}>
-            <LinearGradient colors={[Colors.accent, '#FF8F00']} style={styles.nearbyGradient}>
-              <View style={styles.nearbyLeft}>
-                <MaterialCommunityIcons name="calendar-clock" size={28} color="#fff" />
-                <View style={{ marginLeft: 12 }}>
-                  <Text style={styles.nearbyTitle}>
-                    {nextCollection.isToday ? 'Collection Today!' : `Next: ${nextCollection.nextDay}`}
-                  </Text>
-                  <Text style={styles.nearbySubtitle}>
-                    {nextCollection.type} • {nextCollection.timeSlot}
-                  </Text>
-                </View>
+        {/* Body content */}
+        <View style={styles.bodyContent}>
+          {/* Stats */}
+          <View style={styles.statsRow}>
+            <View style={[styles.statCard, Shadows.sm]}>
+              <View style={[styles.statIcon, { backgroundColor: Colors.primary + '15' }]}>
+                <MaterialCommunityIcons name="clipboard-list-outline" size={20} color={Colors.primary} />
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={20} color="rgba(255,255,255,0.8)" />
+              <Text style={styles.statValue}>{loading ? '—' : stats.total}</Text>
+              <Text style={styles.statLabel}>Complaints</Text>
+            </View>
+            <View style={[styles.statCard, Shadows.sm]}>
+              <View style={[styles.statIcon, { backgroundColor: Colors.success + '15' }]}>
+                <MaterialCommunityIcons name="check-circle-outline" size={20} color={Colors.success} />
+              </View>
+              <Text style={styles.statValue}>{loading ? '—' : stats.resolved}</Text>
+              <Text style={styles.statLabel}>Resolved</Text>
+            </View>
+            <View style={[styles.statCard, Shadows.sm]}>
+              <View style={[styles.statIcon, { backgroundColor: Colors.warning + '15' }]}>
+                <MaterialCommunityIcons name="clock-outline" size={20} color={Colors.warning} />
+              </View>
+              <Text style={styles.statValue}>{loading ? '—' : stats.pending}</Text>
+              <Text style={styles.statLabel}>Pending</Text>
+            </View>
+          </View>
+
+          {/* Quick Actions */}
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.quickActionsGrid}>
+            {QUICK_ACTIONS.map((action, i) => (
+              <QuickActionCard
+                key={action.id}
+                action={action}
+                delay={i * 80}
+                onPress={() => navigation.navigate(action.route)}
+              />
+            ))}
+          </View>
+
+          {/* Next Collection Banner */}
+          {nextCollection && (
+            <TouchableOpacity style={[styles.nearbyBanner, Shadows.md]} onPress={() => navigation.navigate('CollectionSchedule')} activeOpacity={0.9}>
+              <LinearGradient colors={[Colors.accent, '#FF8F00']} style={styles.nearbyGradient}>
+                <View style={styles.nearbyLeft}>
+                  <MaterialCommunityIcons name="calendar-clock" size={28} color="#fff" />
+                  <View style={{ marginLeft: 12 }}>
+                    <Text style={styles.nearbyTitle}>
+                      {nextCollection.isToday ? 'Collection Today!' : `Next: ${nextCollection.nextDay}`}
+                    </Text>
+                    <Text style={styles.nearbySubtitle}>
+                      {nextCollection.type} • {nextCollection.timeSlot}
+                    </Text>
+                  </View>
+                </View>
+                <MaterialCommunityIcons name="chevron-right" size={20} color="rgba(255,255,255,0.8)" />
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+
+          {/* Recent Complaints */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recent Complaints</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('ComplaintHistory')}>
+              <Text style={styles.seeAllText}>See All</Text>
+            </TouchableOpacity>
+          </View>
+
+          {loading ? (
+            <ActivityIndicator color={Colors.primary} style={{ marginVertical: 20 }} />
+          ) : recentComplaints.length === 0 ? (
+            <View style={styles.emptyState}>
+              <MaterialCommunityIcons name="clipboard-text-outline" size={40} color={Colors.textTertiary} />
+              <Text style={styles.emptyText}>No complaints yet</Text>
+            </View>
+          ) : (
+            recentComplaints.map(c => (
+              <ComplaintCard
+                key={c._id}
+                complaint={{
+                  ...c,
+                  id: c._id,
+                  status: c.status === 'in_progress' ? 'In Progress' : c.status === 'open' ? 'Pending' : c.status === 'resolved' ? 'Completed' : c.status,
+                  assignedDriver: typeof c.assignedDriver === 'object' ? c.assignedDriver?.name : c.assignedDriver,
+                }}
+                onPress={() => navigation.navigate('ComplaintDetails', { complaint: c })}
+              />
+            ))
+          )}
+
+          {/* Report CTA */}
+          <TouchableOpacity style={[styles.reportCta, Shadows.primary]} onPress={() => navigation.navigate('ReportComplaint')} activeOpacity={0.9}>
+            <LinearGradient colors={Colors.gradientPrimary} style={styles.reportCtaGradient}>
+              <MaterialCommunityIcons name="alert-circle-outline" size={24} color="#fff" />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.reportCtaTitle}>See something wrong?</Text>
+                <Text style={styles.reportCtaSubtitle}>Report a complaint instantly</Text>
+              </View>
+              <View style={styles.reportBtn}>
+                <Text style={styles.reportBtnText}>Report</Text>
+              </View>
             </LinearGradient>
           </TouchableOpacity>
-        )}
 
-        {/* Recent Complaints */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent Complaints</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('ComplaintHistory')}>
-            <Text style={styles.seeAllText}>See All</Text>
-          </TouchableOpacity>
+          <View style={{ height: 100 }} />
         </View>
-
-        {loading ? (
-          <ActivityIndicator color={Colors.primary} style={{ marginVertical: 20 }} />
-        ) : recentComplaints.length === 0 ? (
-          <View style={styles.emptyState}>
-            <MaterialCommunityIcons name="clipboard-text-outline" size={40} color={Colors.textTertiary} />
-            <Text style={styles.emptyText}>No complaints yet</Text>
-          </View>
-        ) : (
-          recentComplaints.map(c => (
-            <ComplaintCard
-              key={c._id}
-              complaint={{
-                ...c,
-                id: c._id,
-                status: c.status === 'in_progress' ? 'In Progress' : c.status === 'open' ? 'Pending' : c.status === 'resolved' ? 'Completed' : c.status,
-                assignedDriver: typeof c.assignedDriver === 'object' ? c.assignedDriver?.name : c.assignedDriver,
-              }}
-              onPress={() => navigation.navigate('ComplaintDetails', { complaint: c })}
-            />
-          ))
-        )}
-
-        {/* Report CTA */}
-        <TouchableOpacity style={[styles.reportCta, Shadows.primary]} onPress={() => navigation.navigate('ReportComplaint')} activeOpacity={0.9}>
-          <LinearGradient colors={Colors.gradientPrimary} style={styles.reportCtaGradient}>
-            <MaterialCommunityIcons name="alert-circle-outline" size={24} color="#fff" />
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.reportCtaTitle}>See something wrong?</Text>
-              <Text style={styles.reportCtaSubtitle}>Report a complaint instantly</Text>
-            </View>
-            <View style={styles.reportBtn}>
-              <Text style={styles.reportBtnText}>Report</Text>
-            </View>
-          </LinearGradient>
-        </TouchableOpacity>
-
-        <View style={{ height: 100 }} />
-      </Animated.ScrollView>
+      </ScrollView>
     </View>
   );
+
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: { paddingHorizontal: Spacing.base, paddingBottom: 28, overflow: 'hidden' },
+  bodyContent: { padding: Spacing.base, paddingTop: Spacing.md },
   headerCircle: { position: 'absolute', width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(255,255,255,0.05)', top: -60, right: -40 },
   headerCircle2: { position: 'absolute', width: 120, height: 120, borderRadius: 60, backgroundColor: 'rgba(255,255,255,0.04)', bottom: 10, left: 20 },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.base },
@@ -275,7 +276,7 @@ const styles = StyleSheet.create({
   collectionTime: { ...textStyles.caption, color: Colors.textSecondary, marginTop: 2 },
   etaChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.primarySurface, borderRadius: BorderRadius.full, paddingHorizontal: 10, paddingVertical: 4 },
   etaText: { ...textStyles.labelSmall, color: Colors.primary },
-  scrollContent: { padding: Spacing.base, paddingTop: Spacing.md },
+  scrollContent: {},
   statsRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.base },
   statCard: { flex: 1, backgroundColor: Colors.surface, borderRadius: BorderRadius.md, padding: Spacing.md, alignItems: 'center' },
   statIcon: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginBottom: 6 },

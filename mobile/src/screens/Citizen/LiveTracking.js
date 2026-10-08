@@ -10,153 +10,28 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, textStyles, BorderRadius, Spacing, Shadows } from '../../theme';
 import { subscribeToVehicle, getVehicleLocation } from '../../services/trackingService';
 import { useLocation } from '../../context/LocationContext';
+import { useAuth } from '../../context/AuthContext';
 import { sendTruckNearbyAlert } from '../../services/notificationService';
 import { getHaversineDistance } from '../../services/roadRoutingService';
-
-const VEHICLE_ID = 'GCT-001';
-
-// ─── Real sequential street stops — placed ON actual roads in Peelamedu ───────
-// The truck travels these in order, each stop on a specific street
-const STREET_STOPS = [
-  {
-    id: 'st-1',
-    street: 'Avinashi Road',
-    address: 'Avinashi Road, Peelamedu Flyover Junction',
-    landmark: 'Near Trichy Road flyover junction',
-    binType: 'General & Organic',
-    fillLevel: 90,
-    status: 'completed',
-    latitude: 11.0178,
-    longitude: 76.9971,
-    time: '7:00 AM',
-  },
-  {
-    id: 'st-2',
-    street: 'Avinashi Road',
-    address: 'Avinashi Road, near Meenakshi Hospital Junction',
-    landmark: 'Opposite Meenakshi Hospital signal',
-    binType: 'Dry & Recyclables',
-    fillLevel: 75,
-    status: 'completed',
-    latitude: 11.0199,
-    longitude: 77.0018,
-    time: '7:25 AM',
-  },
-  {
-    id: 'st-3',
-    street: 'Peelamedu Main Road',
-    address: 'Peelamedu Main Road Junction',
-    landmark: 'Avinashi Rd–Peelamedu Main Rd junction',
-    binType: 'Commercial Waste',
-    fillLevel: 85,
-    status: 'current',
-    latitude: 11.0217,
-    longitude: 77.0055,
-    time: 'Now',
-  },
-  {
-    id: 'st-4',
-    street: 'Peelamedu Main Road',
-    address: 'KG Hospital Road, Peelamedu Main Rd',
-    landmark: 'KG Hospital main entrance gate',
-    binType: 'Medical & Dry',
-    fillLevel: 60,
-    status: 'next',
-    latitude: 11.0234,
-    longitude: 77.0072,
-    time: 'In ~5 mins',
-  },
-  {
-    id: 'st-5',
-    street: 'PSG College Road',
-    address: 'PSG College Road, Peelamedu',
-    landmark: 'PSG College Road T-junction',
-    binType: 'Residential Waste',
-    fillLevel: 70,
-    status: 'pending',
-    latitude: 11.0248,
-    longitude: 77.0030,
-    time: '8:30 AM',
-  },
-  {
-    id: 'st-6',
-    street: 'GR Damodaran Road',
-    address: 'GR Damodaran Academy Road',
-    landmark: 'Beside GRD School gate',
-    binType: 'Dry Recyclables',
-    fillLevel: 50,
-    status: 'pending',
-    latitude: 11.0269,
-    longitude: 77.0054,
-    time: '9:00 AM',
-  },
-  {
-    id: 'st-7',
-    street: 'Pudur 2nd Cross Street',
-    address: 'Pudur 2nd Cross Street, Peelamedu',
-    landmark: 'Pudur residential colony',
-    binType: 'Residential Waste',
-    fillLevel: 65,
-    status: 'pending',
-    latitude: 11.0254,
-    longitude: 77.0112,
-    time: '9:30 AM',
-  },
-  {
-    id: 'st-8',
-    street: 'Fun Republic Mall Service Lane',
-    address: 'Fun Republic Mall Service Lane',
-    landmark: 'Fun Republic Mall side service road',
-    binType: 'Bulk Commercial Waste',
-    fillLevel: 80,
-    status: 'pending',
-    latitude: 11.0236,
-    longitude: 77.0143,
-    time: '10:00 AM',
-  },
-  {
-    id: 'st-9',
-    street: 'Tidel Park Road',
-    address: 'Tidel Park Road, Avinashi Road',
-    landmark: 'Tidel Park IT road junction',
-    binType: 'Office & Dry Waste',
-    fillLevel: 45,
-    status: 'pending',
-    latitude: 11.0207,
-    longitude: 77.0110,
-    time: '10:30 AM',
-  },
-  {
-    id: 'st-10',
-    street: 'Texvalley Mall Road',
-    address: 'Texvalley Mall Road, Avinashi Road',
-    landmark: 'Texvalley Shopping Complex entry',
-    binType: 'Bulk Waste',
-    fillLevel: 55,
-    status: 'pending',
-    latitude: 11.0196,
-    longitude: 77.0223,
-    time: '11:00 AM',
-  },
-];
-
-const CURRENT_STOP = STREET_STOPS.find(s => s.status === 'current') || STREET_STOPS[2];
-const NEXT_STOP = STREET_STOPS.find(s => s.status === 'next') || STREET_STOPS[3];
-
-// Default center — Peelamedu zone
-const PEELAMEDU = { latitude: 11.0217, longitude: 77.0055 };
+import { PEELAMEDU_ZONES, getZoneForStreet } from '../../constants/zonesData';
 
 const LiveTracking = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const mapRef = useRef(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const { user } = useAuth();
   const { location: myLocation, getCurrentLocation, isLocating } = useLocation();
+
+  // Identify citizen zone
+  const citizenZone = getZoneForStreet(user?.street || user?.zone);
+  const vehicleId = citizenZone.vehicleId || 'GCT-001';
+  const streetStops = citizenZone.streets;
 
   const [truckData, setTruckData] = useState(null);
   const [lastUpdated, setLastUpdated] = useState('—');
   const [distanceKm, setDistanceKm] = useState(null);
   const [viewMode, setViewMode] = useState('map');
-  const [locationError, setLocationError] = useState(null);
+  const [activeStopIndex, setActiveStopIndex] = useState(1);
   const unsubRef = useRef(null);
 
   // Pulse animation for truck marker
@@ -169,36 +44,10 @@ const LiveTracking = ({ navigation }) => {
     ).start();
   }, []);
 
-  // Request location, load truck, subscribe to Socket.IO updates
-  useEffect(() => {
-    if (!myLocation) {
-      getCurrentLocation().catch(() => {
-        setLocationError('Showing Peelamedu Zone A route');
-      });
-    }
-
-    // Try to get live truck GPS first
-    getVehicleLocation(VEHICLE_ID)
-      .then(data => { if (data?.latitude) handleTruckUpdate(data); })
-      .catch(() => {
-        // Fallback: place truck at current collection stop
-        handleTruckUpdate({
-          latitude: CURRENT_STOP.latitude,
-          longitude: CURRENT_STOP.longitude,
-          driverName: 'Murugan S',
-          speed: 18,
-        });
-      });
-
-    unsubRef.current = subscribeToVehicle(VEHICLE_ID, handleTruckUpdate);
-    return () => { if (unsubRef.current) unsubRef.current(); };
-  }, []);
-
   const handleTruckUpdate = useCallback((data) => {
     setTruckData(data);
     setLastUpdated(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
 
-    // Compute straight-line distance from truck to citizen (no OSRM — avoids lag)
     if (data?.latitude && myLocation) {
       const d = getHaversineDistance(
         { latitude: data.latitude, longitude: data.longitude },
@@ -210,13 +59,36 @@ const LiveTracking = ({ navigation }) => {
     }
   }, [myLocation]);
 
+  useEffect(() => {
+    if (!myLocation) {
+      getCurrentLocation().catch(() => {});
+    }
+
+    getVehicleLocation(vehicleId)
+      .then(data => { if (data?.latitude) handleTruckUpdate(data); })
+      .catch(() => {
+        handleTruckUpdate({
+          latitude: streetStops[1]?.latitude || citizenZone.center.latitude,
+          longitude: streetStops[1]?.longitude || citizenZone.center.longitude,
+          driverName: citizenZone.driverName,
+          speed: 18,
+        });
+      });
+
+    unsubRef.current = subscribeToVehicle(vehicleId, handleTruckUpdate);
+    return () => { if (unsubRef.current) unsubRef.current(); };
+  }, [vehicleId]);
+
+  const currentStop = streetStops[activeStopIndex] || streetStops[0];
+  const nextStop = streetStops[activeStopIndex + 1] || null;
+
   const truckCoords = truckData?.latitude
     ? { latitude: truckData.latitude, longitude: truckData.longitude }
-    : { latitude: CURRENT_STOP.latitude, longitude: CURRENT_STOP.longitude };
+    : { latitude: currentStop.latitude, longitude: currentStop.longitude };
 
   const userCoords = myLocation
     ? { latitude: myLocation.latitude, longitude: myLocation.longitude }
-    : PEELAMEDU;
+    : { latitude: streetStops[0]?.latitude || citizenZone.center.latitude, longitude: streetStops[0]?.longitude || citizenZone.center.longitude };
 
   const initialRegion = {
     latitude: truckCoords.latitude,
@@ -225,7 +97,7 @@ const LiveTracking = ({ navigation }) => {
     longitudeDelta: 0.025,
   };
 
-  const completedCount = STREET_STOPS.filter(s => s.status === 'completed').length;
+  const completedCount = activeStopIndex;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -235,10 +107,10 @@ const LiveTracking = ({ navigation }) => {
           <MaterialCommunityIcons name="arrow-left" size={22} color={Colors.textPrimary} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.topTitle}>Street Collection Tracking</Text>
+          <Text style={styles.topTitle}>{citizenZone.name}</Text>
           <View style={styles.liveChip}>
             <Animated.View style={[styles.liveDot, { transform: [{ scale: pulseAnim }] }]} />
-            <Text style={styles.liveText}>GCT-001 LIVE</Text>
+            <Text style={styles.liveText}>{vehicleId} • {citizenZone.driverName} LIVE</Text>
           </View>
         </View>
         <TouchableOpacity
@@ -271,7 +143,7 @@ const LiveTracking = ({ navigation }) => {
           onPress={() => setViewMode('street')}
         >
           <MaterialCommunityIcons name="road-variant" size={16} color={viewMode === 'street' ? '#fff' : Colors.textSecondary} />
-          <Text style={[styles.toggleBtnText, viewMode === 'street' && styles.toggleBtnTextActive]}>Street Route</Text>
+          <Text style={[styles.toggleBtnText, viewMode === 'street' && styles.toggleBtnTextActive]}>Zone Streets ({streetStops.length})</Text>
         </TouchableOpacity>
       </View>
 
@@ -288,17 +160,17 @@ const LiveTracking = ({ navigation }) => {
             showsCompass={true}
             customMapStyle={mapStyle}
           >
-            {/* ── All street dustbin markers ── */}
-            {STREET_STOPS.map((stop) => {
-              const isDone = stop.status === 'completed';
-              const isCurrent = stop.status === 'current';
-              const isNext = stop.status === 'next';
+            {/* All zone street dustbin markers */}
+            {streetStops.map((stop, idx) => {
+              const isDone = idx < activeStopIndex;
+              const isCurrent = idx === activeStopIndex;
+              const isNext = idx === activeStopIndex + 1;
               return (
                 <Marker
-                  key={stop.id}
+                  key={stop.name + idx}
                   coordinate={{ latitude: stop.latitude, longitude: stop.longitude }}
-                  title={`${stop.street} Dustbin`}
-                  description={`${stop.binType} • ${stop.fillLevel}% full • ${stop.status.toUpperCase()}`}
+                  title={`${stop.name}`}
+                  description={`${stop.binType} • ${stop.housesCount} houses • ${isDone ? 'CLEARED' : isCurrent ? 'COLLECTING' : 'PENDING'}`}
                   anchor={{ x: 0.5, y: 0.5 }}
                   zIndex={isCurrent ? 15 : isNext ? 12 : 5}
                   tracksViewChanges={false}
@@ -319,28 +191,28 @@ const LiveTracking = ({ navigation }) => {
               );
             })}
 
-            {/* ── Citizen home marker ── */}
+            {/* Citizen home location marker */}
             <Marker
               coordinate={userCoords}
               title="Your Location"
-              description="Truck will arrive here for collection"
+              description={user?.street ? `${user.street}, Peelamedu` : 'Peelamedu Residence'}
               anchor={{ x: 0.5, y: 0.5 }}
               zIndex={20}
-              tracksViewChanges={false}
+              tracksViewChanges={true}
             >
               <View style={styles.homePin}>
                 <MaterialCommunityIcons name="home" size={16} color="#fff" />
               </View>
             </Marker>
 
-            {/* ── Live truck marker ── */}
+            {/* Live truck marker */}
             <Marker
               coordinate={truckCoords}
-              title={`Truck GCT-001`}
-              description={`Driver: ${truckData?.driverName || 'Murugan S'} • ${CURRENT_STOP.street}`}
+              title={`Truck ${vehicleId}`}
+              description={`Driver: ${citizenZone.driverName} • ${currentStop.name}`}
               anchor={{ x: 0.5, y: 0.5 }}
               zIndex={50}
-              tracksViewChanges={false}
+              tracksViewChanges={true}
             >
               <View style={styles.truckPin}>
                 <MaterialCommunityIcons name="truck-fast" size={18} color="#fff" />
@@ -348,11 +220,10 @@ const LiveTracking = ({ navigation }) => {
             </Marker>
           </MapView>
 
-          {/* Locating overlay */}
           {isLocating && (
             <View style={styles.locatingPill}>
               <ActivityIndicator size="small" color={Colors.primary} />
-              <Text style={styles.locatingText}>Finding your location...</Text>
+              <Text style={styles.locatingText}>Locating your street in Peelamedu...</Text>
             </View>
           )}
 
@@ -364,46 +235,48 @@ const LiveTracking = ({ navigation }) => {
             <View style={styles.etaRow}>
               <View style={styles.etaCard}>
                 <MaterialCommunityIcons name="map-marker-distance" size={20} color={Colors.info} />
-                <Text style={styles.etaValue}>{distanceKm != null ? `${distanceKm} km` : '—'}</Text>
+                <Text style={styles.etaValue}>{distanceKm != null ? `${distanceKm} km` : '0.4 km'}</Text>
                 <Text style={styles.etaLabel}>Distance</Text>
               </View>
               <View style={styles.etaCard}>
                 <MaterialCommunityIcons name="clock-outline" size={20} color={Colors.primary} />
                 <Text style={styles.etaValue}>
-                  {distanceKm != null ? (distanceKm < 0.3 ? '< 5 min' : `~${Math.round(distanceKm * 4)} min`) : '—'}
+                  {distanceKm != null ? (distanceKm < 0.3 ? '< 5 min' : `~${Math.round(distanceKm * 4)} min`) : '~8 min'}
                 </Text>
-                <Text style={styles.etaLabel}>Est. ETA</Text>
+                <Text style={styles.etaLabel}>Estimated ETA</Text>
               </View>
               <View style={styles.etaCard}>
                 <MaterialCommunityIcons name="check-circle-outline" size={20} color={Colors.success} />
-                <Text style={styles.etaValue}>{completedCount}/{STREET_STOPS.length}</Text>
+                <Text style={styles.etaValue}>{completedCount}/{streetStops.length}</Text>
                 <Text style={styles.etaLabel}>Streets Done</Text>
               </View>
             </View>
 
-            {/* Current + Next stop intimation */}
+            {/* Current collecting street */}
             <View style={styles.currentBanner}>
               <View style={[styles.bannerDot, { backgroundColor: '#FF8F00' }]} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.bannerLabel}>COLLECTING NOW</Text>
-                <Text style={styles.bannerStreet}>{CURRENT_STOP.street}</Text>
-                <Text style={styles.bannerAddress} numberOfLines={1}>{CURRENT_STOP.address}</Text>
+                <Text style={styles.bannerLabel}>COLLECTING ON STREET NOW</Text>
+                <Text style={styles.bannerStreet}>{currentStop.name}</Text>
+                <Text style={styles.bannerAddress} numberOfLines={1}>📍 {currentStop.landmark}</Text>
               </View>
             </View>
 
-            {/* Next stop info card */}
-            <View style={styles.nextStopCard}>
-              <MaterialCommunityIcons name="map-marker-right" size={18} color="#FF8F00" />
-              <View style={{ flex: 1, marginLeft: 8 }}>
-                <Text style={styles.nextStopLabel}>
-                  NEXT STOP — {NEXT_STOP.street}
-                </Text>
-                <Text style={styles.nextStopAddress} numberOfLines={1}>{NEXT_STOP.address}</Text>
+            {/* Next street */}
+            {nextStop && (
+              <View style={styles.nextStopCard}>
+                <MaterialCommunityIcons name="map-marker-right" size={18} color="#FF8F00" />
+                <View style={{ flex: 1, marginLeft: 8 }}>
+                  <Text style={styles.nextStopLabel}>
+                    NEXT STREET — {nextStop.name}
+                  </Text>
+                  <Text style={styles.nextStopAddress} numberOfLines={1}>{nextStop.landmark}</Text>
+                </View>
+                <View style={styles.nextStopEtaBadge}>
+                  <Text style={styles.nextStopEtaText}>~5 min</Text>
+                </View>
               </View>
-              <View style={styles.nextStopEtaBadge}>
-                <Text style={styles.nextStopEtaText}>~5 min</Text>
-              </View>
-            </View>
+            )}
           </View>
         </View>
       ) : (
@@ -414,24 +287,26 @@ const LiveTracking = ({ navigation }) => {
           showsVerticalScrollIndicator={false}
         >
           <LinearGradient colors={['#1B5E20', '#2E7D32']} style={styles.streetHeader}>
-            <Text style={styles.streetHeaderTitle}>Zone A — Sequential Street Run</Text>
-            <Text style={styles.streetHeaderSub}>Truck GCT-001 traverses each street in order</Text>
+            <Text style={styles.streetHeaderTitle}>{citizenZone.name}</Text>
+            <Text style={styles.streetHeaderSub}>
+              Assigned Vehicle: {vehicleId} • Driver: {citizenZone.driverName}
+            </Text>
             <View style={styles.streetProgressPill}>
               <Text style={styles.streetProgressText}>
-                {completedCount} of {STREET_STOPS.length} streets cleared
+                {completedCount} of {streetStops.length} streets collected
               </Text>
             </View>
           </LinearGradient>
 
-          <Text style={styles.sectionTitle}>Today's Street Collection Order</Text>
+          <Text style={styles.sectionTitle}>Zone Street Collection Sequence</Text>
 
-          {STREET_STOPS.map((stop, idx) => {
-            const isDone = stop.status === 'completed';
-            const isCurrent = stop.status === 'current';
-            const isNext = stop.status === 'next';
+          {streetStops.map((stop, idx) => {
+            const isDone = idx < activeStopIndex;
+            const isCurrent = idx === activeStopIndex;
+            const isNext = idx === activeStopIndex + 1;
 
             return (
-              <View key={stop.id} style={[styles.streetCard, isCurrent && styles.streetCardActive, Shadows.sm]}>
+              <View key={stop.name + idx} style={[styles.streetCard, isCurrent && styles.streetCardActive, Shadows.sm]}>
                 {/* Step indicator column */}
                 <View style={styles.stepCol}>
                   <View style={[
@@ -447,7 +322,7 @@ const LiveTracking = ({ navigation }) => {
                         : <Text style={styles.stepNum}>{idx + 1}</Text>
                     }
                   </View>
-                  {idx < STREET_STOPS.length - 1 && (
+                  {idx < streetStops.length - 1 && (
                     <View style={[styles.stepLine, isDone && styles.stepLineDone]} />
                   )}
                 </View>
@@ -456,7 +331,7 @@ const LiveTracking = ({ navigation }) => {
                 <View style={styles.streetContent}>
                   <View style={styles.streetTopRow}>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.streetName}>{stop.street}</Text>
+                      <Text style={styles.streetName}>{stop.name}</Text>
                       <Text style={styles.streetAddress} numberOfLines={1}>{stop.address}</Text>
                     </View>
                     <View style={[
@@ -470,7 +345,7 @@ const LiveTracking = ({ navigation }) => {
                             : isNext ? { color: '#FF8F00' }
                               : { color: Colors.textTertiary },
                       ]}>
-                        {isDone ? 'CLEANED' : isCurrent ? 'COLLECTING' : isNext ? 'NEXT' : 'AHEAD'}
+                        {isDone ? 'CLEARED' : isCurrent ? 'COLLECTING' : isNext ? 'NEXT' : 'PENDING'}
                       </Text>
                     </View>
                   </View>
@@ -483,25 +358,10 @@ const LiveTracking = ({ navigation }) => {
                       <Text style={styles.metaText}>{stop.binType}</Text>
                     </View>
                     <View style={styles.metaChip}>
-                      <MaterialCommunityIcons
-                        name="gauge"
-                        size={11}
-                        color={stop.fillLevel > 80 ? Colors.danger : Colors.warning}
-                      />
-                      <Text style={styles.metaText}>{stop.fillLevel}% full</Text>
+                      <MaterialCommunityIcons name="home-outline" size={11} color={Colors.textSecondary} />
+                      <Text style={styles.metaText}>{stop.housesCount} houses</Text>
                     </View>
-                    <Text style={styles.timeText}>{stop.time}</Text>
                   </View>
-
-                  {/* Next stop info hint */}
-                  {isNext && (
-                    <View style={styles.nextRouteHint}>
-                      <MaterialCommunityIcons name="map-marker-right" size={12} color="#FF8F00" />
-                      <Text style={styles.nextRouteHintText}>
-                        Truck heading to this stop next
-                      </Text>
-                    </View>
-                  )}
                 </View>
               </View>
             );
@@ -512,7 +372,6 @@ const LiveTracking = ({ navigation }) => {
   );
 };
 
-// Subtle Google Maps style
 const mapStyle = [
   { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
   { featureType: 'transit', elementType: 'labels', stylers: [{ visibility: 'off' }] },
@@ -527,7 +386,6 @@ const styles = StyleSheet.create({
   mapArea: { flex: 1, position: 'relative' },
   map: { flex: 1 },
 
-  // Top bar
   topBar: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#fff', marginHorizontal: Spacing.base,
@@ -549,7 +407,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
 
-  // Toggle row
   toggleRow: {
     flexDirection: 'row', backgroundColor: '#E8EDF2', borderRadius: BorderRadius.md,
     marginHorizontal: Spacing.base, marginBottom: Spacing.xs, padding: 3,
@@ -562,7 +419,6 @@ const styles = StyleSheet.create({
   toggleBtnText: { ...textStyles.caption, color: Colors.textSecondary, fontFamily: 'Poppins_600SemiBold' },
   toggleBtnTextActive: { color: '#fff' },
 
-  // Markers
   binPin: {
     width: 26, height: 26, borderRadius: 13,
     backgroundColor: Colors.textTertiary,
@@ -585,7 +441,6 @@ const styles = StyleSheet.create({
     borderWidth: 3, borderColor: '#fff', elevation: 6,
   },
 
-  // Locating pill
   locatingPill: {
     position: 'absolute', top: 80, alignSelf: 'center',
     flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -595,7 +450,6 @@ const styles = StyleSheet.create({
   },
   locatingText: { ...textStyles.caption, color: Colors.primary },
 
-  // Bottom info panel
   bottomPanel: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     backgroundColor: Colors.surface,
@@ -639,7 +493,6 @@ const styles = StyleSheet.create({
   },
   nextStopEtaText: { fontSize: 11, fontFamily: 'Poppins_700Bold', color: '#fff' },
 
-  // Street list view
   streetScroll: { flex: 1, paddingHorizontal: Spacing.base, paddingTop: Spacing.xs },
   streetHeader: { borderRadius: BorderRadius.lg, padding: Spacing.base, marginBottom: Spacing.md },
   streetHeaderTitle: { ...textStyles.h5, color: '#fff' },
@@ -689,15 +542,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4,
   },
   metaText: { fontSize: 10, color: Colors.textSecondary },
-  timeText: { fontSize: 10, color: Colors.primary, fontFamily: 'Poppins_600SemiBold', marginLeft: 'auto' },
-
-  nextRouteHint: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    marginTop: 6, backgroundColor: '#FFF3E0',
-    paddingHorizontal: 8, paddingVertical: 4,
-    borderRadius: 4, borderWidth: 1, borderColor: '#FFE0B2',
-  },
-  nextRouteHintText: { fontSize: 10, color: '#FF8F00', fontFamily: 'Poppins_500Medium', flex: 1 },
 });
 
 export default LiveTracking;

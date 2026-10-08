@@ -1,21 +1,33 @@
 import Schedule from '../models/Schedule.js';
+import Driver from '../models/Driver.js';
+import { PEELAMEDU_ZONES } from '../utils/zonesData.js';
 
 // Seed default schedules if none exist
 async function seedSchedules() {
   const count = await Schedule.countDocuments();
   if (count > 0) return;
 
-  const now = new Date();
-  await Schedule.insertMany([
-    { area: 'Peelamedu Main Road & PSG Area',      zone: 'Zone A', type: 'General Waste', dayOfWeek: [1, 4], timeSlot: '7:00 AM - 10:00 AM', vehicleId: 'GCT-001', color: '#2E7D32', icon: 'trash-can' },
-    { area: 'Peelamedu Main Road & PSG Area',      zone: 'Zone A', type: 'Recyclables',   dayOfWeek: [3],    timeSlot: '8:00 AM - 11:00 AM', vehicleId: 'GCT-002', color: '#1565C0', icon: 'recycle' },
-    { area: 'Peelamedu Main Road & PSG Area',      zone: 'Zone A', type: 'Organic Waste',  dayOfWeek: [6],    timeSlot: '9:00 AM - 12:00 PM', vehicleId: 'GCT-001', color: '#4CAF50', icon: 'leaf' },
-    { area: 'Avinashi Road & Tidel Park Area',     zone: 'Zone B', type: 'General Waste', dayOfWeek: [2, 5], timeSlot: '7:00 AM - 10:00 AM', vehicleId: 'GCT-002', color: '#2E7D32', icon: 'trash-can' },
-    { area: 'Avinashi Road & Tidel Park Area',     zone: 'Zone B', type: 'Recyclables',   dayOfWeek: [1, 4], timeSlot: '8:30 AM - 11:30 AM', vehicleId: 'GCT-005', color: '#1565C0', icon: 'recycle' },
-    { area: 'Peelamedu Pudur & KG Hospital Area',  zone: 'Zone C', type: 'General Waste', dayOfWeek: [2, 6], timeSlot: '6:30 AM - 9:30 AM',  vehicleId: 'GCT-006', color: '#2E7D32', icon: 'trash-can' },
-    { area: 'Peelamedu Pudur & KG Hospital Area',  zone: 'Zone C', type: 'Recyclables',   dayOfWeek: [3, 0], timeSlot: '7:00 AM - 10:00 AM', vehicleId: 'GCT-002', color: '#1565C0', icon: 'recycle' },
-  ]);
-  console.log('Schedules seeded with Peelamedu zones');
+  const schedulesToSeed = [];
+  for (const z of PEELAMEDU_ZONES) {
+    const driverDoc = await Driver.findOne({ email: z.driverEmail });
+    schedulesToSeed.push({
+      area: 'Peelamedu',
+      zone: z.name,
+      streets: z.streets.map(s => s.name),
+      type: z.id === 'peelamedu-psg' ? 'General Waste' : z.id === 'peelamedu-hope-college' ? 'Recyclables' : 'Organic Waste',
+      dayOfWeek: z.dayOfWeek,
+      scheduleDay: z.scheduleDay,
+      timeSlot: z.timeSlot,
+      vehicleId: z.vehicleId,
+      driver: driverDoc?._id || null,
+      color: z.color,
+      icon: z.icon,
+      isActive: true,
+    });
+  }
+
+  await Schedule.insertMany(schedulesToSeed);
+  console.log('Schedules seeded with Peelamedu zone collection model');
 }
 
 export async function listSchedules(req, res, next) {
@@ -49,8 +61,10 @@ export async function getUpcomingCollections(req, res, next) {
 
       return {
         _id: s._id,
-        area: s.area,
+        area: s.area || 'Peelamedu',
         zone: s.zone,
+        streets: s.streets || [],
+        scheduleDay: s.scheduleDay || '',
         type: s.type,
         timeSlot: s.timeSlot,
         vehicleId: s.vehicleId,

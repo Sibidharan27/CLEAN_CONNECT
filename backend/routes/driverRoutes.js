@@ -3,6 +3,7 @@ import {
   getDriverRoutes,
   completeStop,
   startRoute,
+  stopRoute,
   updateDriverLocation,
   getDriverStats,
 } from '../controllers/driverController.js';
@@ -12,6 +13,7 @@ const router = Router();
 router.use(protect);
 router.get('/routes', getDriverRoutes);
 router.post('/routes/:routeId/start', startRoute);
+router.post('/routes/:routeId/stop', stopRoute);
 router.post('/routes/:routeId/stops/:stopId/complete', completeStop);
 router.post('/location', updateDriverLocation);
 router.get('/stats', getDriverStats);

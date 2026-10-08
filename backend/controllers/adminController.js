@@ -277,9 +277,15 @@ export async function resetTodayRoutes(req, res, next) {
 
 export async function getDriverComplaintStats(req, res, next) {
   try {
-    // ?period=3&unit=months  OR  ?period=1&unit=years
-    const period = parseInt(req.query.period) || 1;
-    const unit   = req.query.unit === 'years' ? 'years' : 'months';
+    let period = parseInt(req.query.period);
+    const unit = req.query.unit === 'years' ? 'years' : 'months';
+    if (!period || isNaN(period) || period <= 0) {
+      if (req.query.months) {
+        period = parseInt(req.query.months) || 1;
+      } else {
+        period = 1;
+      }
+    }
 
     const since = new Date();
     if (unit === 'years') {
@@ -288,14 +294,27 @@ export async function getDriverComplaintStats(req, res, next) {
       since.setMonth(since.getMonth() - period);
     }
 
-    // Count complaints that have an assignedDriver and were resolved/closed
-    // within the time window (using createdAt or updatedAt of the complaint).
+    // Count complaints with assignedDriver completed within the time window
+    // Matches complaints where status is 'resolved' or 'closed' and
+    // either timeline has resolved/closed entry with time >= since or updatedAt >= since.
     const pipeline = [
       {
         $match: {
           assignedDriver: { $ne: null },
           status: { $in: ['resolved', 'closed'] },
-          updatedAt: { $gte: since },
+          $or: [
+            {
+              timeline: {
+                $elemMatch: {
+                  status: { $in: ['resolved', 'closed'] },
+                  time: { $gte: since },
+                },
+              },
+            },
+            {
+              updatedAt: { $gte: since },
+            },
+          ],
         },
       },
       {
@@ -310,7 +329,11 @@ export async function getDriverComplaintStats(req, res, next) {
 
     // Build a driverId → count map
     const countMap = {};
-    results.forEach(r => { countMap[r._id.toString()] = r.count; });
+    results.forEach(r => {
+      if (r._id) {
+        countMap[r._id.toString()] = r.count;
+      }
+    });
 
     res.json({ countMap, since, period, unit });
   } catch (e) { next(e); }

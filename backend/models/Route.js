@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 const routeSchema = new mongoose.Schema({
   driver: { type: mongoose.Schema.Types.ObjectId, ref: 'Driver', required: true },
   vehicleId: { type: String, required: true },
+  zoneName: { type: String, default: 'Peelamedu – PSG Zone' },
+  area: { type: String, default: 'Peelamedu' },
   date: { type: String, required: true }, // YYYY-MM-DD
   stops: [{
     stopNumber: Number,
@@ -10,6 +12,8 @@ const routeSchema = new mongoose.Schema({
     area: String,
     street: String,        // actual street name the stop is on
     landmark: String,
+    binType: String,
+    housesCount: Number,
     latitude: Number,
     longitude: Number,
     status: { type: String, enum: ['pending', 'in_progress', 'completed', 'skipped'], default: 'pending' },

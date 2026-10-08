@@ -12,6 +12,10 @@ export const getDriverRoutes = () => authRequest('/driver/routes');
 export const startRoute = (routeId) =>
   authRequest(`/driver/routes/${routeId}/start`, { method: 'POST' });
 
+export const stopRoute = (routeId) =>
+  authRequest(`/driver/routes/${routeId}/stop`, { method: 'POST' });
+
+
 export const completeStop = (routeId, stopId) =>
   authRequest(`/driver/routes/${routeId}/stops/${stopId}/complete`, { method: 'POST' });
 

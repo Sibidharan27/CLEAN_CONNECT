@@ -41,7 +41,8 @@ const formatJoinDate = (dateStr) => {
 const EditProfileModal = ({ visible, user, onClose, onSave }) => {
   const [name, setName] = useState(user?.name || '');
   const [phone, setPhone] = useState(user?.phone || '');
-  const [area, setArea] = useState(user?.area || '');
+  const [street, setStreet] = useState(user?.street || 'PSG Tech College Road');
+  const [zone, setZone] = useState(user?.zone || 'Peelamedu – PSG Zone');
   const [address, setAddress] = useState(user?.address || '');
   const [saving, setSaving] = useState(false);
 
@@ -49,7 +50,8 @@ const EditProfileModal = ({ visible, user, onClose, onSave }) => {
     if (visible) {
       setName(user?.name || '');
       setPhone(user?.phone || '');
-      setArea(user?.area || '');
+      setStreet(user?.street || 'PSG Tech College Road');
+      setZone(user?.zone || 'Peelamedu – PSG Zone');
       setAddress(user?.address || '');
     }
   }, [visible, user]);
@@ -60,18 +62,32 @@ const EditProfileModal = ({ visible, user, onClose, onSave }) => {
     try {
       const updated = await authRequest('/auth/me', {
         method: 'PATCH',
-        body: JSON.stringify({ name: name.trim(), phone: phone.trim(), area: area.trim(), address: address.trim() }),
+        body: JSON.stringify({
+          name: name.trim(),
+          phone: phone.trim(),
+          area: 'Peelamedu',
+          zone: zone.trim(),
+          street: street.trim(),
+          address: address.trim(),
+        }),
       });
       // Save updated user to local cache
       await AsyncStorage.setItem('@cleanconnect:user', JSON.stringify(updated.user || updated));
       onSave(updated.user || updated);
       Alert.alert('Saved ✅', 'Your profile has been updated.');
     } catch (e) {
-      // If backend doesn't have a PATCH /auth/me, update local cache only
-      const localUpdate = { ...user, name: name.trim(), phone: phone.trim(), area: area.trim(), address: address.trim() };
+      const localUpdate = {
+        ...user,
+        name: name.trim(),
+        phone: phone.trim(),
+        area: 'Peelamedu',
+        zone: zone.trim(),
+        street: street.trim(),
+        address: address.trim(),
+      };
       await AsyncStorage.setItem('@cleanconnect:user', JSON.stringify(localUpdate));
       onSave(localUpdate);
-      Alert.alert('Saved ✅', 'Profile updated locally.');
+      Alert.alert('Saved ✅', 'Profile updated.');
     } finally {
       setSaving(false);
     }
@@ -83,7 +99,7 @@ const EditProfileModal = ({ visible, user, onClose, onSave }) => {
         <View style={styles.modalSheet}>
           <View style={styles.modalHandle} />
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Edit Profile</Text>
+            <Text style={styles.modalTitle}>Edit Citizen Profile</Text>
             <TouchableOpacity onPress={onClose} style={styles.modalCloseBtn}>
               <MaterialCommunityIcons name="close" size={22} color={Colors.textSecondary} />
             </TouchableOpacity>
@@ -92,15 +108,16 @@ const EditProfileModal = ({ visible, user, onClose, onSave }) => {
           {[
             { label: 'Full Name *', value: name, setter: setName, icon: 'account-outline', placeholder: 'Enter your name' },
             { label: 'Phone Number', value: phone, setter: setPhone, icon: 'phone-outline', placeholder: '+91 XXXXX XXXXX', keyboardType: 'phone-pad' },
-            { label: 'Service Area / Zone', value: area, setter: setArea, icon: 'map-marker-outline', placeholder: 'e.g. Zone A - RS Puram' },
-            { label: 'Address', value: address, setter: setAddress, icon: 'home-outline', placeholder: 'Your full address', multiline: true },
+            { label: 'Street in Peelamedu', value: street, setter: setStreet, icon: 'road-variant', placeholder: 'e.g. PSG Tech College Road' },
+            { label: 'Collection Zone', value: zone, setter: setZone, icon: 'map-marker-radius', placeholder: 'e.g. Peelamedu – PSG Zone' },
+            { label: 'Detailed Address', value: address, setter: setAddress, icon: 'home-outline', placeholder: 'Your door no, building, road', multiline: true },
           ].map(field => (
             <View key={field.label} style={styles.inputGroup}>
               <Text style={styles.inputLabel}>{field.label}</Text>
               <View style={styles.inputRow}>
                 <MaterialCommunityIcons name={field.icon} size={18} color={Colors.textSecondary} style={{ marginRight: 8 }} />
                 <TextInput
-                  style={[styles.textInput, field.multiline && { height: 70, textAlignVertical: 'top' }]}
+                  style={[styles.textInput, field.multiline && { height: 60, textAlignVertical: 'top' }]}
                   value={field.value}
                   onChangeText={field.setter}
                   placeholder={field.placeholder}
@@ -124,7 +141,7 @@ const EditProfileModal = ({ visible, user, onClose, onSave }) => {
               ) : (
                 <MaterialCommunityIcons name="content-save-outline" size={20} color="#fff" />
               )}
-              <Text style={styles.saveBtnText}>{saving ? 'Saving...' : 'Save Changes'}</Text>
+              <Text style={styles.saveBtnText}>{saving ? 'Saving...' : 'Save Profile'}</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -213,16 +230,17 @@ const Profile = ({ navigation }) => {
 
   const onRefresh = () => { setRefreshing(true); loadStats(); };
 
-  const displayName = user?.name || 'User';
+  const displayName = user?.name || 'Citizen';
   const displayEmail = user?.email || '—';
   const displayPhone = user?.phone || 'Not set — tap Edit to add';
-  const displayArea = user?.area || 'Coimbatore';
-  const displayAddress = user?.address || 'Not set — tap Edit to add';
+  const displayStreet = user?.street || 'PSG Tech College Road';
+  const displayZone = user?.zone || 'Peelamedu – PSG Zone';
+  const displayAddress = user?.address || '12, PSG Tech College Road, Peelamedu';
   const memberSince = formatJoinDate(user?.createdAt);
 
   const MENU_ITEMS = [
-    { id: 'edit', icon: 'account-edit-outline', label: 'Edit Profile', color: Colors.primary },
-    { id: 'area', icon: 'map-marker-outline', label: 'Collection Schedule', color: Colors.info },
+    { id: 'edit', icon: 'account-edit-outline', label: 'Edit Profile & Street', color: Colors.primary },
+    { id: 'area', icon: 'calendar-month-outline', label: 'My Collection Schedule', color: Colors.info },
     { id: 'history', icon: 'history', label: 'Complaint History', color: Colors.warning },
     { id: 'privacy', icon: 'shield-lock-outline', label: 'Privacy & Security', color: Colors.textSecondary },
     { id: 'help', icon: 'help-circle-outline', label: 'Help & Support', color: Colors.textSecondary },
@@ -251,7 +269,7 @@ const Profile = ({ navigation }) => {
           <Text style={styles.userEmail}>{displayEmail}</Text>
           <View style={styles.memberChip}>
             <MaterialCommunityIcons name="shield-check" size={12} color={Colors.accent} />
-            <Text style={styles.memberText}>Member since {memberSince}</Text>
+            <Text style={styles.memberText}>Peelamedu Citizen • Member since {memberSince}</Text>
           </View>
         </LinearGradient>
 
@@ -273,17 +291,18 @@ const Profile = ({ navigation }) => {
         {/* ── Personal Info ── */}
         <View style={[styles.section, Shadows.sm]}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Personal Information</Text>
+            <Text style={styles.sectionTitle}>Location & Personal Information</Text>
             <TouchableOpacity onPress={() => setEditModalVisible(true)} style={styles.editInlineBtn}>
               <MaterialCommunityIcons name="pencil-outline" size={16} color={Colors.primary} />
               <Text style={styles.editInlineText}>Edit</Text>
             </TouchableOpacity>
           </View>
           {[
-            { icon: 'email-outline', label: 'Email', value: displayEmail },
+            { icon: 'map-marker-radius', label: 'Collection Zone', value: displayZone },
+            { icon: 'road-variant', label: 'Assigned Street', value: displayStreet },
+            { icon: 'home-outline', label: 'Residential Address', value: displayAddress },
             { icon: 'phone-outline', label: 'Phone', value: displayPhone },
-            { icon: 'map-marker-outline', label: 'Service Area', value: displayArea },
-            { icon: 'home-outline', label: 'Address', value: displayAddress },
+            { icon: 'email-outline', label: 'Email', value: displayEmail },
           ].map((item, i) => (
             <View key={item.label}>
               {i > 0 && <View style={styles.divider} />}
