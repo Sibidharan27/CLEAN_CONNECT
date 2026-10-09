@@ -225,7 +225,7 @@ const ReportComplaint = ({ navigation }) => {
             {/* Zone Tag Display */}
             <View style={styles.zoneTagBox}>
               <MaterialCommunityIcons name="map-marker-radius" size={16} color={Colors.primary} />
-              <Text style={styles.zoneTagText}>Mapped Zone: <strong>{form.zone}</strong></Text>
+              <Text style={styles.zoneTagText}>Mapped Zone: <Text style={{ fontWeight: '700', color: Colors.primary }}>{form.zone}</Text></Text>
             </View>
 
             <InputField

@@ -907,27 +907,64 @@ function DriversView({ token }) {
         </div>
       </div>
 
-      {/* Compact filter bar */}
+      {/* Workload Balancing & Distribution KPI Cards */}
+      <div className="stats-grid" style={{ marginBottom: 16 }}>
+        <StatCard
+          label={`Resolved Complaints (${filterLabel})`}
+          value={totalResolvedInPeriod}
+          sub={`${drivers.length} active Peelamedu drivers`}
+          color="var(--primary)"
+        />
+        <StatCard
+          label="Fleet Average Per Driver"
+          value={avgPerDriver}
+          sub="Target average per driver"
+          color="var(--accent-blue)"
+        />
+        <StatCard
+          label="Workload Distribution"
+          value={heavyDriver ? 'Imbalance Detected' : 'Workload Balanced'}
+          sub={heavyDriver ? `Overload on ${heavyDriver.name}` : 'Evenly distributed across fleet'}
+          color={heavyDriver ? 'var(--accent-amber)' : 'var(--primary)'}
+        />
+        <StatCard
+          label="Task Allocation Advice"
+          value={heavyDriver ? (lightDriver ? `Assign to ${lightDriver.name}` : 'Reduce new assignments') : 'Optimal Balance'}
+          sub={heavyDriver ? `Distribute tasks to avoid driver fatigue` : 'All drivers within optimal capacity'}
+          color={heavyDriver ? 'var(--accent-red)' : 'var(--primary)'}
+        />
+      </div>
+
+      {/* Compact filter bar with Workload Balancing Banner */}
       <div className="card" style={{ marginBottom: 16, padding: '14px 20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)' }}>📋 Complaints Attended In:</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <select
-              className="filter-select"
-              value={selectedPeriod}
-              onChange={handlePeriodDropdownChange}
-              style={{ minWidth: 140, padding: '6px 12px', fontSize: 13, fontWeight: 600 }}
-            >
-              {COMPLAINT_PERIOD_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.text}
-                </option>
-              ))}
-            </select>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)' }}>📋 Complaints Attended In:</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <select
+                className="filter-select"
+                value={selectedPeriod}
+                onChange={handlePeriodDropdownChange}
+                style={{ minWidth: 140, padding: '6px 12px', fontSize: 13, fontWeight: 600 }}
+              >
+                {COMPLAINT_PERIOD_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.text}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>
+              Resolved / closed complaints per driver · {filterLabel}
+            </span>
           </div>
-          <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>
-            Resolved / closed complaints per driver · {filterLabel}
-          </span>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>Workload Status:</span>
+            <span className={`badge ${heavyDriver ? 'badge-pending' : 'badge-resolved'}`}>
+              {heavyDriver ? '⚠️ Workload Imbalance' : '✅ Balanced Fleet'}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -962,10 +999,11 @@ function DriversView({ token }) {
               <th>Today&apos;s Route</th>
               <th>Stops</th>
               <th>Complaints Attended<br /><span style={{ fontWeight: 400, fontSize: 11, color: 'var(--text-dim)', textTransform: 'none' }}>{filterLabel}</span></th>
+              <th>Workload &amp; Allocation Advice</th>
             </tr></thead>
             <tbody>
               {driverStatsList.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: 32 }}>No drivers registered yet</td></tr>
+                <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: 32 }}>No drivers registered yet</td></tr>
               ) : driverStatsList.map(d => {
                 const done  = d.route?.stops?.filter(s => s.status === 'completed').length || 0;
                 const total = d.route?.stops?.length || 0;
@@ -1005,11 +1043,21 @@ function DriversView({ token }) {
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <span style={{ fontSize: 18, fontWeight: 800, color: barColor }}>{statsLoading ? '…' : d.count}</span>
-                            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>resolved</span>
+                            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>resolved ({d.share}%)</span>
                           </div>
                           <div style={{ width: 80, height: 4, borderRadius: 2, background: 'var(--border-color)', marginTop: 4, overflow: 'hidden' }}>
                             <div style={{ width: `${barWidth}%`, height: '100%', background: barColor, borderRadius: 2 }} />
                           </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div>
+                        <span className={`badge ${d.status === 'heavy' ? 'badge-pending' : d.status === 'light' ? 'badge-blue' : 'badge-resolved'}`} style={{ fontSize: 11 }}>
+                          {d.statusLabel}
+                        </span>
+                        <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
+                          👉 {d.recommendation}
                         </div>
                       </div>
                     </td>
