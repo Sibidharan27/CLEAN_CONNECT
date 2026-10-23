@@ -6,6 +6,7 @@ import {
   stopRoute,
   updateDriverLocation,
   getDriverStats,
+  unableToCollect,
 } from '../controllers/driverController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
@@ -15,6 +16,8 @@ router.get('/routes', getDriverRoutes);
 router.post('/routes/:routeId/start', startRoute);
 router.post('/routes/:routeId/stop', stopRoute);
 router.post('/routes/:routeId/stops/:stopId/complete', completeStop);
+router.post('/routes/:routeId/stops/:stopId/unable', unableToCollect);
 router.post('/location', updateDriverLocation);
 router.get('/stats', getDriverStats);
 export default router;
+

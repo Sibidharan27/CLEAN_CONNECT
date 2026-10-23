@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import Complaint from '../models/Complaint.js';
 import { createNotification } from './notificationController.js';
+import { runDetection, getTodayCollectionDate } from '../services/detectionEngine.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -49,6 +50,15 @@ export async function createComplaint(req, res, next) {
       priority: priority || 'medium',
       timeline: [{ status: 'open', note: 'Complaint registered successfully in ' + zone }],
     });
+
+    // ── Trigger missed-collection detection asynchronously (non-blocking) ─────
+    // Only for missed-collection category. Does not affect complaint submission.
+    if (category === 'missed' || category === 'Missed Collection') {
+      const collectionDate = getTodayCollectionDate();
+      runDetection(street, zone, collectionDate).catch(e =>
+        console.error('[ComplaintController] Detection engine error:', e.message)
+      );
+    }
 
     res.status(201).json(complaint);
   } catch (e) { next(e); }

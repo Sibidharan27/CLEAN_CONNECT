@@ -264,6 +264,70 @@ export async function updateDriverLocation(req, res, next) {
   } catch (e) { next(e); }
 }
 
+// POST /api/driver/routes/:routeId/stops/:stopId/unable
+// Records an "Unable to Collect" exception without marking the stop as completed.
+export async function unableToCollect(req, res, next) {
+  try {
+    let route = null;
+    if (req.params.routeId && mongoose.Types.ObjectId.isValid(req.params.routeId)) {
+      route = await Route.findById(req.params.routeId);
+    }
+    if (!route) {
+      route = await getOrCreateTodayRoute(req.user.id);
+    }
+    if (!route) return res.status(404).json({ message: 'Route not found' });
+
+    const stop = route.stops.id(req.params.stopId) || route.stops.find(s => String(s._id) === String(req.params.stopId));
+    if (!stop) return res.status(404).json({ message: 'Stop not found' });
+
+    const VALID_REASONS = [
+      'Street inaccessible or blocked',
+      'Vehicle breakdown',
+      'Safety issue',
+      'No waste available for collection',
+      'Other',
+    ];
+
+    const { reason, details } = req.body || {};
+    if (!reason) {
+      return res.status(400).json({ message: `reason is required. One of: ${VALID_REASONS.join(', ')}` });
+    }
+    if (!VALID_REASONS.includes(reason)) {
+      return res.status(400).json({ message: `Invalid reason. Must be one of: ${VALID_REASONS.join(', ')}` });
+    }
+
+    // Mark stop as skipped (not completed) and record the reason
+    stop.status = 'skipped';
+    stop.completedAt = null;
+    // Store exception reason — extend stop object with the field
+    stop.set({ skipReason: `${reason}${details ? ': ' + details : ''}` });
+
+    // Advance to next pending stop
+    const nextPending = route.stops.find(s => s.status === 'pending');
+    if (nextPending) nextPending.status = 'in_progress';
+
+    // Route remains active
+    if (route.status === 'pending') {
+      route.status = 'active';
+      route.startedAt = route.startedAt || new Date();
+    }
+
+    await route.save();
+
+    if (_io) {
+      _io.emit('route:stop_skipped', {
+        routeId:  route._id,
+        stopId:   stop._id,
+        reason,
+        details,
+        skippedAt: new Date().toISOString(),
+      });
+    }
+
+    res.json(route);
+  } catch (e) { next(e); }
+}
+
 // GET /api/driver/stats
 export async function getDriverStats(req, res, next) {
   try {

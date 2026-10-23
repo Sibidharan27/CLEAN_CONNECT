@@ -19,6 +19,7 @@ const routeSchema = new mongoose.Schema({
     status: { type: String, enum: ['pending', 'in_progress', 'completed', 'skipped'], default: 'pending' },
     complaintsCount: { type: Number, default: 0 },
     completedAt: Date,
+    skipReason: { type: String, default: null },
   }],
   status: { type: String, enum: ['pending', 'active', 'completed'], default: 'pending' },
   startedAt: Date,

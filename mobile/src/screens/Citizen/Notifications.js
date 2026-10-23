@@ -6,7 +6,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors, textStyles, BorderRadius, Spacing, Shadows } from '../../theme';
 import Header from '../../components/Header/Header';
-import { getNotifications, markRead, markAllRead, sendTestNotification } from '../../services/notificationService';
+import { getNotifications, markRead, markAllRead } from '../../services/notificationService';
 import { useNotifications } from '../../context/NotificationContext';
 
 const TYPE_ICONS = {
@@ -110,11 +110,7 @@ const Notifications = ({ navigation }) => {
         <View style={styles.emptyState}>
           <MaterialCommunityIcons name="bell-sleep-outline" size={60} color={Colors.textTertiary} />
           <Text style={styles.emptyTitle}>All Caught Up!</Text>
-          <Text style={styles.emptySubtitle}>You have no notifications yet.{`\n`}Notifications will appear here when the truck is nearby.</Text>
-          <TouchableOpacity style={styles.testBtn} onPress={sendTestNotification}>
-            <MaterialCommunityIcons name="bell-ring-outline" size={18} color="#fff" />
-            <Text style={styles.testBtnText}>Test Notification</Text>
-          </TouchableOpacity>
+          <Text style={styles.emptySubtitle}>{`You have no notifications yet.\nNew alerts will appear here automatically.`}</Text>
         </View>
       ) : (
         <FlatList
@@ -148,8 +144,6 @@ const styles = StyleSheet.create({
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   emptyTitle: { ...textStyles.h5, color: Colors.textPrimary, marginTop: Spacing.base },
   emptySubtitle: { ...textStyles.body, color: Colors.textSecondary, marginTop: Spacing.sm, textAlign: 'center' },
-  testBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Colors.primary, borderRadius: BorderRadius.lg, paddingHorizontal: 20, paddingVertical: 12, marginTop: 20 },
-  testBtnText: { ...textStyles.label, color: '#fff' },
 });
 
 export default Notifications;

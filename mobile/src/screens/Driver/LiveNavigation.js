@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, textStyles, BorderRadius, Spacing, Shadows } from '../../theme';
-import { getDriverRoutes, completeStop, startRoute, stopRoute, postDriverLocation } from '../../services/scheduleService';
+import { getDriverRoutes, completeStop, startRoute, stopRoute, postDriverLocation, unableToCollect } from '../../services/scheduleService';
 import { broadcastDriverLocation } from '../../services/trackingService';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation } from '../../context/LocationContext';
@@ -287,6 +287,44 @@ const LiveNavigation = ({ navigation }) => {
     ]);
   };
 
+  const handleUnableToCollect = () => {
+    if (!routeData?._id || !currentStop?._id) {
+      Alert.alert('No Stop', 'No active stop to report.');
+      return;
+    }
+    const REASONS = [
+      'Street inaccessible or blocked',
+      'Vehicle breakdown',
+      'Safety issue',
+      'No waste available for collection',
+      'Other',
+    ];
+    Alert.alert(
+      '⚠️ Unable to Collect',
+      `Report why collection is not possible at:\n"${currentStop.street || currentStop.address}"`,
+      REASONS.map(reason => ({
+        text: reason,
+        onPress: async () => {
+          try {
+            setCompleting(true);
+            const updated = await unableToCollect(routeData._id, currentStop._id, reason);
+            if (updated?.stops) {
+              setStops(updated.stops);
+              setRouteData(updated);
+              const nextIdx = updated.stops.findIndex(s => s.status !== 'completed' && s.status !== 'skipped');
+              if (nextIdx >= 0) setCurrentStopIndex(nextIdx);
+            }
+            Alert.alert('Exception Recorded', `"${reason}" has been logged for ${currentStop.street || currentStop.address}. The supervisor has been notified.`);
+          } catch (e) {
+            Alert.alert('Error', e.message || 'Could not record exception.');
+          } finally {
+            setCompleting(false);
+          }
+        },
+      })).concat([{ text: 'Cancel', style: 'cancel' }])
+    );
+  };
+
   const handleSkipStop = () => {
     const nextPending = stops.findIndex(
       (s, i) => i > currentStopIndex && s.status !== 'completed'
@@ -546,6 +584,13 @@ const LiveNavigation = ({ navigation }) => {
               </TouchableOpacity>
             )}
 
+            {currentStop && (
+              <TouchableOpacity style={[styles.unableBtn, Shadows.sm]} onPress={handleUnableToCollect} disabled={completing}>
+                <MaterialCommunityIcons name="alert-octagon-outline" size={18} color="#FF8F00" />
+                <Text style={styles.unableBtnText}>Unable</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity style={[styles.pauseBtn, Shadows.sm]} onPress={handlePauseTrip}>
               <MaterialCommunityIcons name="pause" size={18} color={Colors.danger} />
               <Text style={styles.pauseBtnText}>Pause</Text>
@@ -687,6 +732,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
   },
   skipBtnText: { ...textStyles.label, color: Colors.textSecondary },
+  unableBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#FFF8E1', borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
+    borderWidth: 1, borderColor: '#FF8F00',
+  },
+  unableBtnText: { ...textStyles.label, color: '#FF8F00' },
   pauseBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: Colors.dangerSurface, borderRadius: BorderRadius.lg,

@@ -252,7 +252,36 @@ export async function updateVehicle(req, res, next) {
     if (currentArea !== undefined) vehicle.currentArea = currentArea;
     if (fuelLevel !== undefined) vehicle.fuelLevel = fuelLevel;
     if (notes !== undefined) vehicle.notes = notes;
-    if (assignedDriver !== undefined) vehicle.assignedDriver = assignedDriver || null;
+
+    // ── Vehicle-Driver assignment sync ────────────────────────────────────────
+    // Vehicle.assignedDriver (ObjectId) and Driver.vehicleId (String) must stay
+    // consistent. Update both sides whenever the assignment changes.
+    if (assignedDriver !== undefined) {
+      const prevDriverId = vehicle.assignedDriver?.toString() || null;
+      const newDriverId  = assignedDriver || null;
+
+      // 1. Clear vehicleId on the driver who WAS assigned (if different)
+      if (prevDriverId && prevDriverId !== (newDriverId || '')) {
+        await Driver.findByIdAndUpdate(prevDriverId, { vehicleId: '' });
+      }
+
+      vehicle.assignedDriver = newDriverId;
+
+      if (newDriverId) {
+        // 2. Remove this vehicle from any OTHER driver already holding it
+        await Driver.updateMany(
+          { vehicleId: vehicle.vehicleId, _id: { $ne: newDriverId } },
+          { vehicleId: '' }
+        );
+        // 3. Remove any OTHER vehicle record that points to this driver
+        await Vehicle.updateMany(
+          { assignedDriver: newDriverId, _id: { $ne: vehicle._id } },
+          { $set: { assignedDriver: null } }
+        );
+        // 4. Write vehicleId onto the new driver record
+        await Driver.findByIdAndUpdate(newDriverId, { vehicleId: vehicle.vehicleId });
+      }
+    }
 
     await vehicle.save();
     res.json(await vehicle.populate('assignedDriver', 'name email phone'));

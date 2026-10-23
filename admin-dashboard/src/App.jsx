@@ -23,6 +23,7 @@ const Icon = ({ name, size = 18 }) => {
     plus: <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>,
     refresh: <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>,
     truck: <path d="M17 8H3v9h1.56c.35 1.17 1.43 2 2.44 2s2.09-.83 2.44-2h5.12c.35 1.17 1.43 2 2.44 2s2.09-.83 2.44-2H21v-5l-4-4zM3 11V9h4v2H3zm4 6.5c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm7-6.5H9V9h5v2zm3 6.5c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm1-6.5h-3V9h2l1 1v1z"/>,
+    alert: <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
@@ -788,6 +789,7 @@ function ComplaintsView({ token }) {
           </div>
         </div>
       )}
+
     </div>
   );
 }
@@ -1424,6 +1426,435 @@ function RoutesView({ token }) {
   );
 }
 
+// ─── Missed Collection Alerts View ───────────────────────────────────────────
+const PRIORITY_STYLES = {
+  medium:   { cls: 'badge-in_progress', label: 'Medium',   emoji: '🟡' },
+  high:     { cls: 'badge-pending',     label: 'High',     emoji: '🟠' },
+  critical: { cls: 'badge-dim',         label: 'Critical', emoji: '🔴' },
+};
+const ALERT_STATUS_MAP = {
+  new:                   ['badge-pending',     'New'],
+  under_review:          ['badge-in_progress', 'Under Review'],
+  driver_contacted:      ['badge-blue',        'Driver Contacted'],
+  recollection_required: ['badge-pending',     'Recollection Required'],
+  resolved:              ['badge-resolved',    'Resolved'],
+  dismissed:             ['badge-dim',         'Dismissed'],
+};
+function AlertBadge({ status }) {
+  const [cls, label] = ALERT_STATUS_MAP[status] || ['badge-dim', status];
+  return <span className={`badge ${cls}`}>{label}</span>;
+}
+function PriorityBadge({ priority }) {
+  const s = PRIORITY_STYLES[priority] || { cls: 'badge-dim', label: priority, emoji: '⚪' };
+  return <span className={`badge ${s.cls}`}>{s.emoji} {s.label}</span>;
+}
+
+function MissedCollectionAlertsView({ token }) {
+  const headers = { Authorization: `Bearer ${token}` };
+  const [alerts, setAlerts]           = useState([]);
+  const [stats, setStats]             = useState(null);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState(null);
+  const [selectedAlert, setSelected]  = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [noteText, setNoteText]       = useState('');
+  const [dismissReason, setDismissReason] = useState('');
+  const [resolveNote, setResolveNote] = useState('');
+  const [page, setPage]               = useState(1);
+  const [totalPages, setTotalPages]   = useState(1);
+  const [total, setTotal]             = useState(0);
+
+  // Filters
+  const [filterStatus,   setFilterStatus]   = useState('all');
+  const [filterPriority, setFilterPriority] = useState('all');
+  const [filterZone,     setFilterZone]     = useState('all');
+  const [filterDate,     setFilterDate]     = useState('');
+
+  const load = useCallback(async (pg = 1) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({ page: pg, limit: 15 });
+      if (filterStatus   !== 'all') params.append('status',   filterStatus);
+      if (filterPriority !== 'all') params.append('priority', filterPriority);
+      if (filterZone     !== 'all') params.append('zone',     filterZone);
+      if (filterDate)               params.append('date',     filterDate);
+
+      const [alertsRes, statsRes] = await Promise.all([
+        api.get(`/alerts?${params}`,  { headers }),
+        api.get('/alerts/stats',       { headers }),
+      ]);
+      setAlerts(alertsRes.data.alerts || []);
+      setTotal(alertsRes.data.total   || 0);
+      setTotalPages(alertsRes.data.totalPages || 1);
+      setStats(statsRes.data);
+      setPage(pg);
+    } catch (e) {
+      setError(e.response?.data?.message || e.message || 'Failed to load alerts');
+    } finally {
+      setLoading(false);
+    }
+  }, [token, filterStatus, filterPriority, filterZone, filterDate]);
+
+  useEffect(() => { load(1); }, [load]);
+
+  const openDetail = async (alertId) => {
+    setDetailLoading(true);
+    try {
+      const res = await api.get(`/alerts/${alertId}`, { headers });
+      setSelected(res.data);
+    } catch (e) {
+      alert(e.response?.data?.message || 'Failed to load alert detail');
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const doAction = async (action, body = {}) => {
+    if (!selectedAlert) return;
+    setActionLoading(true);
+    try {
+      let res;
+      if (action === 'note') {
+        res = await api.post(`/alerts/${selectedAlert._id}/notes`, { note: noteText }, { headers });
+        setNoteText('');
+      } else if (action === 'recollection') {
+        res = await api.post(`/alerts/${selectedAlert._id}/recollection`, body, { headers });
+      } else {
+        res = await api.patch(`/alerts/${selectedAlert._id}/status`, body, { headers });
+      }
+      setSelected(res.data);
+      load(page);
+    } catch (e) {
+      alert(e.response?.data?.message || 'Action failed');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const fmtTime = (d) => d ? new Date(d).toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '—';
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="header">
+        <div className="header-title">
+          <h1>⚠️ Missed Collection Alerts</h1>
+          <p>Smart detection of potential missed garbage collections — Peelamedu zones. Review evidence before taking action.</p>
+        </div>
+        <button className="btn btn-outline" onClick={() => load(page)}><Icon name="refresh" size={15} /> Refresh</button>
+      </div>
+
+      {/* KPI Stats */}
+      {stats && (
+        <div className="stats-grid" style={{ marginBottom: 20 }}>
+          <StatCard label="Total Alerts"    value={stats.totalAlerts}   sub="All time"            color="var(--text-main)" />
+          <StatCard label="Needs Review"    value={stats.newAlerts}     sub="Awaiting admin action" color="var(--accent-amber)" />
+          <StatCard label="Under Review"    value={stats.underReview}   sub="Being investigated"  color="var(--accent-blue)" />
+          <StatCard label="High / Critical" value={stats.highPriority}  sub="Elevated priority active" color="var(--accent-red)" />
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="toolbar" style={{ marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+        <select id="alert-filter-status" className="filter-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+          <option value="all">All Statuses</option>
+          <option value="new">New</option>
+          <option value="under_review">Under Review</option>
+          <option value="driver_contacted">Driver Contacted</option>
+          <option value="recollection_required">Recollection Required</option>
+          <option value="resolved">Resolved</option>
+          <option value="dismissed">Dismissed</option>
+        </select>
+        <select id="alert-filter-priority" className="filter-select" value={filterPriority} onChange={e => setFilterPriority(e.target.value)}>
+          <option value="all">All Priorities</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+          <option value="critical">Critical</option>
+        </select>
+        <select id="alert-filter-zone" className="filter-select" value={filterZone} onChange={e => setFilterZone(e.target.value)}>
+          <option value="all">All Zones</option>
+          <option value="PSG">PSG Zone</option>
+          <option value="Hope">Hope College Zone</option>
+          <option value="Avinashi">Avinashi Road Zone</option>
+        </select>
+        <input
+          id="alert-filter-date"
+          type="date"
+          className="filter-select"
+          value={filterDate}
+          onChange={e => setFilterDate(e.target.value)}
+          style={{ background: 'var(--bg-surface)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '6px 12px', fontFamily: 'inherit' }}
+        />
+        {(filterStatus !== 'all' || filterPriority !== 'all' || filterZone !== 'all' || filterDate) && (
+          <button className="btn btn-outline" style={{ fontSize: 12, padding: '6px 12px' }} onClick={() => { setFilterStatus('all'); setFilterPriority('all'); setFilterZone('all'); setFilterDate(''); }}>
+            Clear Filters
+          </button>
+        )}
+      </div>
+
+      {/* Alert List */}
+      <div className="card" style={{ marginBottom: 20 }}>
+        {error && <div style={{ color: 'var(--accent-red)', padding: 16 }}>⚠️ {error}</div>}
+        {loading ? <Spinner /> : alerts.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 40 }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+            <div style={{ fontWeight: 700, color: 'var(--primary)' }}>No alerts matching the current filters</div>
+            <div style={{ color: 'var(--text-dim)', marginTop: 6, fontSize: 13 }}>The system will automatically create alerts when independent missed-collection reports meet the detection threshold.</div>
+          </div>
+        ) : (
+          <table id="missed-collection-alert-table">
+            <thead>
+              <tr>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Street</th>
+                <th>Zone</th>
+                <th>Driver</th>
+                <th>Reports</th>
+                <th>First Report</th>
+                <th>Last Report</th>
+                <th>Collection Date</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {alerts.map(a => (
+                <tr key={a._id} style={{ cursor: 'pointer' }} onClick={() => openDetail(a._id)}>
+                  <td><PriorityBadge priority={a.priority} /></td>
+                  <td><AlertBadge status={a.status} /></td>
+                  <td style={{ fontWeight: 700, maxWidth: 160, wordBreak: 'break-word' }}>{a.street}</td>
+                  <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{a.zone?.replace('Peelamedu – ', '')}</td>
+                  <td style={{ fontSize: 13 }}>{a.driver?.name || '—'}</td>
+                  <td style={{ fontWeight: 700, color: a.independentReportCount >= 3 ? 'var(--accent-red)' : 'var(--accent-amber)' }}>
+                    {a.independentReportCount} independent
+                  </td>
+                  <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{fmtTime(a.firstReportAt)}</td>
+                  <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{fmtTime(a.lastReportAt)}</td>
+                  <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{a.collectionDate}</td>
+                  <td>
+                    <button
+                      className="btn btn-outline"
+                      style={{ padding: '4px 10px', fontSize: 12 }}
+                      onClick={e => { e.stopPropagation(); openDetail(a._id); }}
+                    >
+                      View
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, padding: '0 4px' }}>
+            <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>{total} alerts total</span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-outline" style={{ padding: '4px 12px' }} disabled={page <= 1} onClick={() => load(page - 1)}>← Prev</button>
+              <span style={{ alignSelf: 'center', fontSize: 13 }}>Page {page} / {totalPages}</span>
+              <button className="btn btn-outline" style={{ padding: '4px 12px' }} disabled={page >= totalPages} onClick={() => load(page + 1)}>Next →</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Alert Detail Modal */}
+      {(selectedAlert || detailLoading) && (
+        <div
+          id="alert-detail-modal"
+          style={{
+            position: 'fixed', inset: 0, zIndex: 999,
+            background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+            overflowY: 'auto', padding: '24px 16px',
+          }}
+          onClick={e => { if (e.target === e.currentTarget) setSelected(null); }}
+        >
+          {detailLoading ? <div style={{ alignSelf: 'center' }}><Spinner /></div> : selectedAlert && (
+            <div style={{
+              background: 'var(--bg-card)', borderRadius: 20, border: '1px solid var(--border-color)',
+              width: '100%', maxWidth: 860, padding: 32, position: 'relative',
+            }}>
+              <button
+                onClick={() => setSelected(null)}
+                style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', fontSize: 22 }}
+              >✕</button>
+
+              {/* Title */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 }}>
+                  <PriorityBadge priority={selectedAlert.priority} />
+                  <AlertBadge status={selectedAlert.status} />
+                  <span style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--text-dim)' }}>#{selectedAlert._id?.slice(-8)}</span>
+                </div>
+                <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-main)', marginBottom: 4 }}>
+                  Missed Collection: {selectedAlert.street}
+                </h2>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                  {selectedAlert.zone} · Collection Date: <strong>{selectedAlert.collectionDate}</strong>
+                </div>
+              </div>
+
+              {/* Detection Reason Banner */}
+              <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 13, color: 'var(--accent-amber)' }}>
+                <strong>⚠️ Why this alert was raised:</strong><br/>{selectedAlert.detectionReason || 'Detection rule triggered.'}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+                {/* Driver & Vehicle */}
+                <div style={{ background: 'var(--bg-surface)', borderRadius: 10, padding: 14 }}>
+                  <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--text-dim)', marginBottom: 8, fontWeight: 700 }}>Assigned Driver</div>
+                  {selectedAlert.driver ? (
+                    <>
+                      <div style={{ fontWeight: 700 }}>{selectedAlert.driver.name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{selectedAlert.driver.email}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{selectedAlert.driver.phone || '—'}</div>
+                      <div style={{ fontFamily: 'monospace', color: 'var(--primary)', marginTop: 4 }}>{selectedAlert.vehicleId || selectedAlert.driver.vehicleId}</div>
+                    </>
+                  ) : <div style={{ color: 'var(--text-dim)' }}>Not determined</div>}
+                </div>
+
+                {/* GPS / Route Evidence */}
+                <div style={{ background: 'var(--bg-surface)', borderRadius: 10, padding: 14 }}>
+                  <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--text-dim)', marginBottom: 8, fontWeight: 700 }}>Collection Evidence</div>
+                  {selectedAlert.evidence ? (
+                    <>
+                      <div style={{ fontSize: 12, marginBottom: 4 }}>Route: <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{selectedAlert.evidence.routeStatus || '—'}</span></div>
+                      <div style={{ fontSize: 12, marginBottom: 4 }}>Stop status: <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{selectedAlert.evidence.stopStatus || '—'}</span></div>
+                      {selectedAlert.evidence.stopCompletedAt && <div style={{ fontSize: 12, marginBottom: 4 }}>Completed at: {fmtTime(selectedAlert.evidence.stopCompletedAt)}</div>}
+                      {selectedAlert.evidence.shortDurationFlag && <div style={{ color: 'var(--accent-amber)', fontSize: 12, marginBottom: 4 }}>⚡ Short collection duration detected</div>}
+                      {selectedAlert.evidence.driverNearStreet === true && <div style={{ color: 'var(--primary)', fontSize: 12 }}>✅ GPS: Vehicle near street during collection window</div>}
+                      {selectedAlert.evidence.driverNearStreet === false && <div style={{ color: 'var(--accent-red)', fontSize: 12 }}>⚠️ GPS: No vehicle samples near this street</div>}
+                      {selectedAlert.evidence.driverNearStreet === null && <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>GPS data unavailable for this period</div>}
+                      {selectedAlert.evidence.exceptionReason && <div style={{ color: 'var(--accent-amber)', fontSize: 12, marginTop: 4 }}>Exception: {selectedAlert.evidence.exceptionReason}</div>}
+                      <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 6, fontStyle: 'italic' }}>{selectedAlert.evidence.summary}</div>
+                    </>
+                  ) : <div style={{ color: 'var(--text-dim)' }}>No evidence collected yet</div>}
+                </div>
+              </div>
+
+              {/* Reports */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontWeight: 700, marginBottom: 10 }}>Citizen Reports ({selectedAlert.reports?.length || 0} total, {selectedAlert.independentReportCount} independent)</div>
+                {selectedAlert.reports?.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {selectedAlert.reports.map((r, i) => (
+                      <div key={r._id || i} style={{ background: 'var(--bg-surface)', borderRadius: 8, padding: 12, fontSize: 13 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <span style={{ fontWeight: 600 }}>{r.citizen?.name || 'Citizen'} <span style={{ color: 'var(--text-dim)', fontWeight: 400 }}>({r.citizen?.phone || r.citizen?.email || ''})</span></span>
+                          <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>{fmtTime(r.createdAt)}</span>
+                        </div>
+                        <div style={{ color: 'var(--text-muted)', marginBottom: 4 }}>{r.description}</div>
+                        {r.images?.length > 0 && <div style={{ color: 'var(--accent-blue)', fontSize: 11 }}>📷 {r.images.length} photo(s) attached</div>}
+                      </div>
+                    ))}
+                  </div>
+                ) : <div style={{ color: 'var(--text-dim)', fontSize: 13 }}>No reports loaded</div>}
+              </div>
+
+              {/* Recollection Status */}
+              {selectedAlert.recollection && (
+                <div style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 13 }}>
+                  <strong style={{ color: 'var(--accent-blue)' }}>🚛 Recollection Request</strong><br />
+                  Status: <strong>{selectedAlert.recollection.status}</strong> · Requested: {fmtTime(selectedAlert.recollection.requestedAt)}
+                  {selectedAlert.recollection.completedAt && <> · Completed: {fmtTime(selectedAlert.recollection.completedAt)}</>}
+                  {selectedAlert.recollection.note && <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>{selectedAlert.recollection.note}</div>}
+                </div>
+              )}
+
+              {/* Investigation Notes */}
+              {selectedAlert.investigationNotes?.length > 0 && (
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontWeight: 700, marginBottom: 8 }}>Investigation Notes</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {selectedAlert.investigationNotes.map((n, i) => (
+                      <div key={i} style={{ background: 'var(--bg-surface)', borderRadius: 8, padding: '8px 12px', fontSize: 13, color: 'var(--text-muted)' }}>📝 {n}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Audit Trail */}
+              {selectedAlert.auditTrail?.length > 0 && (
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontWeight: 700, marginBottom: 8 }}>Audit Timeline</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {[...selectedAlert.auditTrail].reverse().map((e, i) => (
+                      <div key={i} style={{ display: 'flex', gap: 10, fontSize: 12, color: 'var(--text-muted)' }}>
+                        <span style={{ color: 'var(--text-dim)', minWidth: 120 }}>{fmtTime(e.time)}</span>
+                        <span><strong style={{ color: 'var(--text-main)' }}>{e.adminName || 'System'}</strong>: {e.action.replace(/_/g,' ')} — {e.note}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Admin Actions */}
+              {!['resolved', 'dismissed'].includes(selectedAlert.status) && (
+                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 20 }}>
+                  <div style={{ fontWeight: 700, marginBottom: 12 }}>Admin Actions</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+                    {selectedAlert.status === 'new' && (
+                      <button id="alert-action-review" className="btn" disabled={actionLoading} onClick={() => doAction('status', { status: 'under_review', note: 'Admin started investigation' })}>Mark Under Review</button>
+                    )}
+                    {['under_review', 'new'].includes(selectedAlert.status) && (
+                      <button id="alert-action-contact" className="btn btn-outline" disabled={actionLoading} onClick={() => doAction('status', { status: 'driver_contacted', note: 'Driver has been contacted for explanation' })}>Driver Contacted</button>
+                    )}
+                    {!['recollection_required'].includes(selectedAlert.status) && (
+                      <button id="alert-action-recollection" className="btn btn-outline" style={{ borderColor: 'var(--accent-blue)', color: 'var(--accent-blue)' }} disabled={actionLoading} onClick={() => doAction('recollection', { note: `Recollection requested for ${selectedAlert.street}` })}>🚛 Request Recollection</button>
+                    )}
+                  </div>
+
+                  {/* Add Note */}
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 6 }}>Add Investigation Note</div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input
+                        id="alert-note-input"
+                        type="text"
+                        value={noteText}
+                        onChange={e => setNoteText(e.target.value)}
+                        placeholder="Type a note..."
+                        style={{ flex: 1, background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-main)', fontFamily: 'inherit', fontSize: 13 }}
+                      />
+                      <button id="alert-note-submit" className="btn" disabled={actionLoading || !noteText.trim()} onClick={() => doAction('note')}>Add Note</button>
+                    </div>
+                  </div>
+
+                  {/* Resolve */}
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <input
+                      id="alert-resolve-input"
+                      type="text"
+                      value={resolveNote}
+                      onChange={e => setResolveNote(e.target.value)}
+                      placeholder="Resolution summary (required)"
+                      style={{ flex: 1, minWidth: 200, background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-main)', fontFamily: 'inherit', fontSize: 13 }}
+                    />
+                    <button id="alert-resolve-btn" className="btn" style={{ background: 'var(--primary)', borderColor: 'var(--primary)' }} disabled={actionLoading || !resolveNote.trim()} onClick={() => { doAction('status', { status: 'resolved', note: resolveNote }); setResolveNote(''); }}>✅ Resolve</button>
+                    <input
+                      id="alert-dismiss-input"
+                      type="text"
+                      value={dismissReason}
+                      onChange={e => setDismissReason(e.target.value)}
+                      placeholder="Dismiss reason (required)"
+                      style={{ flex: 1, minWidth: 200, background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-main)', fontFamily: 'inherit', fontSize: 13 }}
+                    />
+                    <button id="alert-dismiss-btn" className="btn btn-outline" style={{ borderColor: 'var(--accent-red)', color: 'var(--accent-red)' }} disabled={actionLoading || !dismissReason.trim()} onClick={() => { doAction('status', { status: 'dismissed', reason: dismissReason }); setDismissReason(''); }}>🗑 Dismiss</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Sidebar Nav Link ─────────────────────────────────────────────────────────
 function SideLink({ to, icon, label, end }) {
   return (
@@ -1471,6 +1902,7 @@ export default function App() {
           <SideLink to="/hotspots" icon="hotspot" label="Hotspot Analysis" />
           <SideLink to="/zones" icon="zones" label="Zones & Streets" />
           <SideLink to="/complaints" icon="complaints" label="Complaints" />
+          <SideLink to="/alerts" icon="alert" label="Missed Collection Alerts" />
           <SideLink to="/vehicles" icon="vehicles" label="Vehicles" />
           <SideLink to="/drivers" icon="drivers" label="Drivers" />
           <SideLink to="/citizens" icon="users" label="Citizens" />
@@ -1487,6 +1919,7 @@ export default function App() {
           <Route path="/hotspots" element={<HotspotAnalysisView token={token} />} />
           <Route path="/zones" element={<ZonesView token={token} />} />
           <Route path="/complaints" element={<ComplaintsView token={token} />} />
+          <Route path="/alerts" element={<MissedCollectionAlertsView token={token} />} />
           <Route path="/vehicles" element={<VehiclesView token={token} />} />
           <Route path="/drivers" element={<DriversView token={token} />} />
           <Route path="/citizens" element={<CitizensView token={token} />} />

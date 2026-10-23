@@ -15,9 +15,18 @@ export const startRoute = (routeId) =>
 export const stopRoute = (routeId) =>
   authRequest(`/driver/routes/${routeId}/stop`, { method: 'POST' });
 
+export const completeStop = (routeId, stopId, coords) =>
+  authRequest(`/driver/routes/${routeId}/stops/${stopId}/complete`, {
+    method: 'POST',
+    body: JSON.stringify(coords || {}),
+  });
 
-export const completeStop = (routeId, stopId) =>
-  authRequest(`/driver/routes/${routeId}/stops/${stopId}/complete`, { method: 'POST' });
+// Record an "Unable to Collect" exception for a stop
+export const unableToCollect = (routeId, stopId, reason, details) =>
+  authRequest(`/driver/routes/${routeId}/stops/${stopId}/unable`, {
+    method: 'POST',
+    body: JSON.stringify({ reason, details }),
+  });
 
 export const getDriverStats = () => authRequest('/driver/stats');
 
@@ -29,3 +38,4 @@ export const postDriverLocation = (latitude, longitude, vehicleId, heading = 0, 
     method: 'POST',
     body: JSON.stringify({ latitude, longitude, vehicleId, heading, speed }),
   });
+

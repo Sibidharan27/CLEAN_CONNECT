@@ -6,13 +6,16 @@ export const getComplaintById = (id) => authRequest(`/complaints/${id}`);
 
 export const getComplaintStats = () => authRequest('/complaints/stats');
 
-export async function createComplaint({ category, description, address, latitude, longitude, imageUri }) {
+export async function createComplaint({ category, description, address, street, zone, area, latitude, longitude, imageUri }) {
   const formData = new FormData();
   formData.append('category', category);
   formData.append('description', description);
   formData.append('address', address || '');
   formData.append('latitude', String(latitude || 0));
   formData.append('longitude', String(longitude || 0));
+  if (street) formData.append('street', street);
+  if (zone)   formData.append('zone', zone);
+  if (area)   formData.append('area', area || 'Peelamedu');
 
   if (imageUri) {
     const filename = imageUri.split('/').pop();
@@ -31,3 +34,4 @@ export const updateComplaintStatus = (id, status, resolutionNote) =>
   });
 
 export const getImageUrl = (imagePath) => `${API_URL.replace('/api', '')}${imagePath}`;
+
