@@ -44,39 +44,115 @@ const LiveTracking = ({ navigation }) => {
     ).start();
   }, []);
 
-  const handleTruckUpdate = useCallback((data) => {
-    setTruckData(data);
-    setLastUpdated(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
+  const myLocationRef = useRef(myLocation);
+  myLocationRef.current = myLocation;
 
-    if (data?.latitude && myLocation) {
+  const handleTruckUpdate = useCallback((data) => {
+    if (!data?.latitude || !data?.longitude) return;
+
+    const lat = parseFloat(data.latitude);
+    const lng = parseFloat(data.longitude);
+    if (isNaN(lat) || isNaN(lng)) return;
+
+    setTruckData(prev => ({
+      ...prev,
+      ...data,
+      latitude: lat,
+      longitude: lng,
+      driverName: data.driverName || prev?.driverName || citizenZone.driverName,
+      speed: data.speed ?? prev?.speed ?? 18,
+    }));
+
+    setLastUpdated(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+
+    const currentLoc = myLocationRef.current;
+    if (currentLoc) {
       const d = getHaversineDistance(
-        { latitude: data.latitude, longitude: data.longitude },
-        { latitude: myLocation.latitude, longitude: myLocation.longitude }
+        { latitude: lat, longitude: lng },
+        { latitude: currentLoc.latitude, longitude: currentLoc.longitude }
       );
       const dKm = +d.toFixed(2);
       setDistanceKm(dKm);
       sendTruckNearbyAlert(dKm);
     }
-  }, [myLocation]);
+  }, [citizenZone.driverName]);
+
+  // Recalculate distance whenever citizen's location changes
+  useEffect(() => {
+    if (myLocation && truckData?.latitude && truckData?.longitude) {
+      const d = getHaversineDistance(
+        { latitude: truckData.latitude, longitude: truckData.longitude },
+        { latitude: myLocation.latitude, longitude: myLocation.longitude }
+      );
+      setDistanceKm(+d.toFixed(2));
+    }
+  }, [myLocation, truckData?.latitude, truckData?.longitude]);
+
+  const handleLocateMe = async () => {
+    try {
+      let loc = myLocationRef.current;
+      if (!loc) {
+        loc = await getCurrentLocation();
+      }
+      const target = loc
+        ? { latitude: loc.latitude, longitude: loc.longitude }
+        : userCoords;
+      if (mapRef.current && target) {
+        mapRef.current.animateToRegion({
+          latitude: target.latitude,
+          longitude: target.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        }, 500);
+      }
+    } catch {
+      if (mapRef.current && userCoords) {
+        mapRef.current.animateToRegion({
+          latitude: userCoords.latitude,
+          longitude: userCoords.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        }, 500);
+      }
+    }
+  };
 
   useEffect(() => {
-    if (!myLocation) {
+    if (!myLocationRef.current) {
       getCurrentLocation().catch(() => {});
     }
+  }, []);
 
-    getVehicleLocation(vehicleId)
-      .then(data => { if (data?.latitude) handleTruckUpdate(data); })
-      .catch(() => {
-        handleTruckUpdate({
-          latitude: streetStops[1]?.latitude || citizenZone.center.latitude,
-          longitude: streetStops[1]?.longitude || citizenZone.center.longitude,
-          driverName: citizenZone.driverName,
-          speed: 18,
-        });
-      });
+  useEffect(() => {
+    let isMounted = true;
 
-    unsubRef.current = subscribeToVehicle(vehicleId, handleTruckUpdate);
-    return () => { if (unsubRef.current) unsubRef.current(); };
+    // 1. Initial REST fetch
+    const fetchLocation = async () => {
+      try {
+        const data = await getVehicleLocation(vehicleId);
+        if (isMounted && data?.latitude && data?.longitude) {
+          handleTruckUpdate(data);
+        }
+      } catch (e) {
+        // quiet fallback
+      }
+    };
+
+    fetchLocation();
+
+    // 2. Continuous 3.5-second polling fallback so driver GPS tracking is always real-time
+    const pollInterval = setInterval(fetchLocation, 3500);
+
+    // 3. Instant Push updates via Socket.IO
+    const unsub = subscribeToVehicle(vehicleId, (data) => {
+      if (isMounted) handleTruckUpdate(data);
+    });
+
+    return () => {
+      isMounted = false;
+      clearInterval(pollInterval);
+      if (unsub) unsub();
+    };
   }, [vehicleId]);
 
   const currentStop = streetStops[activeStopIndex] || streetStops[0];
@@ -108,22 +184,27 @@ const LiveTracking = ({ navigation }) => {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.topTitle}>{citizenZone.name}</Text>
-          <View style={styles.liveChip}>
+          <TouchableOpacity
+            style={styles.liveChip}
+            activeOpacity={0.8}
+            onPress={() => {
+              if (mapRef.current && truckCoords) {
+                mapRef.current.animateToRegion({
+                  latitude: truckCoords.latitude,
+                  longitude: truckCoords.longitude,
+                  latitudeDelta: 0.015,
+                  longitudeDelta: 0.015,
+                }, 500);
+              }
+            }}
+          >
             <Animated.View style={[styles.liveDot, { transform: [{ scale: pulseAnim }] }]} />
-            <Text style={styles.liveText}>{vehicleId} • {citizenZone.driverName} LIVE</Text>
-          </View>
+            <Text style={styles.liveText}>{vehicleId} • {truckData?.driverName || citizenZone.driverName} LIVE</Text>
+          </TouchableOpacity>
         </View>
         <TouchableOpacity
           style={styles.recenterBtn}
-          onPress={() => {
-            if (mapRef.current) {
-              mapRef.current.animateToRegion({
-                ...truckCoords,
-                latitudeDelta: 0.015,
-                longitudeDelta: 0.015,
-              });
-            }
-          }}
+          onPress={handleLocateMe}
         >
           <MaterialCommunityIcons name="crosshairs-gps" size={20} color={Colors.primary} />
         </TouchableOpacity>
@@ -209,7 +290,7 @@ const LiveTracking = ({ navigation }) => {
             <Marker
               coordinate={truckCoords}
               title={`Truck ${vehicleId}`}
-              description={`Driver: ${citizenZone.driverName} • ${currentStop.name}`}
+              description={`Driver: ${truckData?.driverName || citizenZone.driverName} • ${lastUpdated !== '—' ? `Live (${lastUpdated})` : currentStop.name}`}
               anchor={{ x: 0.5, y: 0.5 }}
               zIndex={50}
               tracksViewChanges={true}
@@ -235,13 +316,13 @@ const LiveTracking = ({ navigation }) => {
             <View style={styles.etaRow}>
               <View style={styles.etaCard}>
                 <MaterialCommunityIcons name="map-marker-distance" size={20} color={Colors.info} />
-                <Text style={styles.etaValue}>{distanceKm != null ? `${distanceKm} km` : '0.4 km'}</Text>
+                <Text style={styles.etaValue}>{distanceKm != null ? `${distanceKm} km` : 'Locating...'}</Text>
                 <Text style={styles.etaLabel}>Distance</Text>
               </View>
               <View style={styles.etaCard}>
                 <MaterialCommunityIcons name="clock-outline" size={20} color={Colors.primary} />
                 <Text style={styles.etaValue}>
-                  {distanceKm != null ? (distanceKm < 0.3 ? '< 5 min' : `~${Math.round(distanceKm * 4)} min`) : '~8 min'}
+                  {distanceKm != null ? (distanceKm < 0.2 ? '< 2 min' : `~${Math.max(1, Math.round(distanceKm * 4))} min`) : 'Locating...'}
                 </Text>
                 <Text style={styles.etaLabel}>Estimated ETA</Text>
               </View>
@@ -256,7 +337,7 @@ const LiveTracking = ({ navigation }) => {
             <View style={styles.currentBanner}>
               <View style={[styles.bannerDot, { backgroundColor: '#FF8F00' }]} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.bannerLabel}>COLLECTING ON STREET NOW</Text>
+                <Text style={styles.bannerLabel}>COLLECTING ON STREET NOW {lastUpdated !== '—' ? `• LIVE ${lastUpdated}` : ''}</Text>
                 <Text style={styles.bannerStreet}>{currentStop.name}</Text>
                 <Text style={styles.bannerAddress} numberOfLines={1}>📍 {currentStop.landmark}</Text>
               </View>

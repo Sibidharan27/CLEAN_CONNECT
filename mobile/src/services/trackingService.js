@@ -4,16 +4,19 @@ import { SOCKET_URL, authRequest } from './api';
 let socket = null;
 
 function getSocket() {
-  if (!socket || !socket.connected) {
+  if (!socket) {
     socket = io(SOCKET_URL, {
-      transports: ['websocket'],
+      transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 2000,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      timeout: 10000,
     });
     socket.on('connect', () => console.log('Socket.IO connected:', socket.id));
     socket.on('disconnect', () => console.log('Socket.IO disconnected'));
     socket.on('connect_error', (err) => console.warn('Socket.IO error:', err.message));
+  } else if (!socket.connected) {
+    socket.connect();
   }
   return socket;
 }
@@ -21,9 +24,18 @@ function getSocket() {
 // ─── Citizen: subscribe to vehicle location updates ──────────────────────────
 export function subscribeToVehicle(vehicleId, onUpdate, onError) {
   const s = getSocket();
-  s.emit('tracking:join', vehicleId);
+  const join = () => {
+    if (vehicleId) s.emit('tracking:join', vehicleId);
+  };
+
+  if (s.connected) {
+    join();
+  }
+  s.on('connect', join);
   s.on('tracking:updated', onUpdate);
+
   return () => {
+    s.off('connect', join);
     s.off('tracking:updated', onUpdate);
   };
 }

@@ -52,6 +52,14 @@ const LiveNavigation = ({ navigation }) => {
   const [markerTracksViews, setMarkerTracksViews] = useState(true);
   const markerTrackTimer = useRef(null);
 
+  const vehicleId = user?.vehicleId || routeData?.vehicleId || 'GCT-001';
+  const vehicleIdRef = useRef(vehicleId);
+  vehicleIdRef.current = vehicleId;
+  const userRef = useRef(user);
+  userRef.current = user;
+  const myLocationRef = useRef(myLocation);
+  myLocationRef.current = myLocation;
+
   const loadRoutes = useCallback(async () => {
     try {
       const data = await getDriverRoutes();
@@ -62,33 +70,72 @@ const LiveNavigation = ({ navigation }) => {
 
       const firstPending = stopList.findIndex(s => s.status !== 'completed');
       setCurrentStopIndex(firstPending >= 0 ? firstPending : 0);
-
-      // Generate sequential road route in stop order
-      const pendingStops = stopList.filter(s => s.latitude && s.longitude && s.status !== 'completed');
-      if (pendingStops.length >= 2) {
-        const origin = myLocation || pendingStops[0];
-        const waypoints = myLocation ? pendingStops : pendingStops.slice(1);
-        getMultiStopRoadRoute([origin, ...waypoints]).then(coords => {
-          if (coords?.length > 0) setRoadPolyline(coords);
-        }).catch(() => {});
-      } else if (pendingStops.length === 1 && myLocation) {
-        getRoadRoute(myLocation, pendingStops[0]).then(res => {
-          if (res.coordinates?.length > 0) setRoadPolyline(res.coordinates);
-        }).catch(() => {});
-      }
     } catch (e) {
       console.warn('LiveNavigation load error:', e.message);
     } finally {
       setLoading(false);
     }
-  }, [myLocation]);
+  }, []);
+
+  const broadcastLocationUpdate = useCallback(async (loc) => {
+    if (!loc?.latitude || !loc?.longitude) return;
+    const vId = vehicleIdRef.current || userRef.current?.vehicleId || 'GCT-001';
+    const payload = {
+      vehicleId: vId,
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+      heading: loc.heading || 0,
+      speed: loc.speed || 0,
+      driverName: userRef.current?.name || 'Driver',
+      timestamp: new Date().toISOString(),
+    };
+    broadcastDriverLocation(vId, payload);
+    try {
+      await postDriverLocation(loc.latitude, loc.longitude, vId, loc.heading || 0, loc.speed || 0);
+    } catch {}
+  }, []);
+
+  const handleLocateMe = async () => {
+    try {
+      let loc = myLocationRef.current;
+      if (!loc) {
+        loc = await getCurrentLocation();
+      }
+      const target = loc
+        ? { latitude: loc.latitude, longitude: loc.longitude }
+        : myCoords;
+      if (mapRef.current && target) {
+        mapRef.current.animateToRegion({
+          latitude: target.latitude,
+          longitude: target.longitude,
+          latitudeDelta: 0.008,
+          longitudeDelta: 0.008,
+        }, 500);
+      }
+    } catch {
+      if (mapRef.current && myCoords) {
+        mapRef.current.animateToRegion({
+          latitude: myCoords.latitude,
+          longitude: myCoords.longitude,
+          latitudeDelta: 0.008,
+          longitudeDelta: 0.008,
+        }, 500);
+      }
+    }
+  };
 
   useEffect(() => {
     loadRoutes();
-    if (!myLocation) {
-      getCurrentLocation().catch(() => {});
-    }
+    getCurrentLocation().then(loc => {
+      if (loc) broadcastLocationUpdate(loc);
+    }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (isRouteActive) {
+      startWatching(broadcastLocationUpdate);
+    }
+  }, [isRouteActive]);
 
   // Update sequential road polyline whenever current stop or location changes
   useEffect(() => {
@@ -143,7 +190,6 @@ const LiveNavigation = ({ navigation }) => {
   const nextStop = nextStopIndex >= 0 ? stops[nextStopIndex] : null;
   const completedCount = stops.filter(s => s.status === 'completed').length;
   const zoneName = routeData?.zoneName || user?.zone || 'Peelamedu – PSG Zone';
-  const vehicleId = user?.vehicleId || routeData?.vehicleId || 'GCT-001';
 
   // Real-time distance and proximity calculation
   const currentDistanceMeters = (myLocation?.latitude && currentStop?.latitude && currentStop?.longitude)
@@ -170,17 +216,7 @@ const LiveNavigation = ({ navigation }) => {
       }
 
       // Start watching location and broadcasting with driver's vehicleId
-      startWatching(async (loc) => {
-        broadcastDriverLocation(vehicleId, {
-          latitude: loc.latitude,
-          longitude: loc.longitude,
-          heading: loc.heading || 0,
-          speed: loc.speed || 0,
-        });
-        try {
-          await postDriverLocation(loc.latitude, loc.longitude, vehicleId, loc.heading || 0, loc.speed || 0);
-        } catch {}
-      });
+      startWatching(broadcastLocationUpdate);
 
       Alert.alert('Route Active! 🚛', `Live street collection started for ${zoneName} on vehicle ${vehicleId}.`);
     } catch (e) {
@@ -443,16 +479,7 @@ const LiveNavigation = ({ navigation }) => {
           </View>
           <TouchableOpacity
             style={styles.navMapTypeBtn}
-            onPress={() => {
-              if (mapRef.current && currentStop) {
-                mapRef.current.animateToRegion({
-                  latitude: currentStop.latitude,
-                  longitude: currentStop.longitude,
-                  latitudeDelta: 0.01,
-                  longitudeDelta: 0.01,
-                });
-              }
-            }}
+            onPress={handleLocateMe}
           >
             <MaterialCommunityIcons name="crosshairs-gps" size={20} color="#1565C0" />
           </TouchableOpacity>

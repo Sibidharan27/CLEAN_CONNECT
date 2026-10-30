@@ -146,6 +146,7 @@ aside {
   display: flex; align-items: center; justify-content: center;
   font-weight: 900; font-size: 18px; color: #fff;
   flex-shrink: 0;
+  object-fit: cover;
 }
 
 .brand-title { font-size: 17px; font-weight: 800; color: #fff; letter-spacing: -0.4px; }

@@ -66,7 +66,10 @@ io.on('connection', socket => {
 
   // Driver manually sends update (fallback if REST not used)
   socket.on('tracking:update', update => {
-    io.to(`vehicle:${update.vehicleId}`).emit('tracking:updated', update);
+    if (update?.vehicleId) {
+      io.to(`vehicle:${update.vehicleId}`).emit('tracking:updated', update);
+    }
+    io.emit('tracking:updated', update);
   });
 
   // Driver joins their own room for commands/notifications

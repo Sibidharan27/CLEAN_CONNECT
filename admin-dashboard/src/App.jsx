@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { NavLink, Route, Routes, useNavigate } from 'react-router-dom';
 import api from './services/api';
+import logoImg from './assets/adaptive-icon.png';
 
 // ─── Icons (inline SVG) ───────────────────────────────────────────────────────
 const Icon = ({ name, size = 18 }) => {
@@ -77,7 +78,7 @@ function AdminLogin({ onLogin }) {
     <div className="login-shell">
       <div className="login-card">
         <div className="login-brand">
-          <div className="brand-icon" style={{ width: 56, height: 56, fontSize: 28, borderRadius: 14 }}>+</div>
+          <img src={logoImg} alt="CleanConnect Logo" className="brand-icon" style={{ width: 56, height: 56, borderRadius: 14, objectFit: 'cover', margin: '0 auto 12px', display: 'block' }} />
           <h1 className="login-title">CleanConnect+</h1>
           <p className="login-subtitle">Admin Control Panel • Peelamedu Zone Management</p>
         </div>
@@ -95,9 +96,9 @@ function AdminLogin({ onLogin }) {
             {loading ? 'Signing in...' : 'Sign In to Dashboard'}
           </button>
         </form>
-        <p className="login-hint">
+        {/* <p className="login-hint">
           Default credentials: <strong>admin@cleanconnect.gov.in</strong> &bull; password: <strong>admin123</strong>
-        </p>
+        </p> */}
       </div>
     </div>
   );
@@ -1886,7 +1887,7 @@ export default function App() {
     <div className="shell">
       <aside>
         <div className="brand">
-          <div className="brand-icon">+</div>
+          <img src={logoImg} alt="CleanConnect Logo" className="brand-icon" style={{ width: 38, height: 38, borderRadius: 10, objectFit: 'cover' }} />
           <span className="brand-title">CleanConnect</span>
           <span className="brand-badge">ADMIN</span>
         </div>

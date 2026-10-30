@@ -5,6 +5,7 @@ import Vehicle from './models/Vehicle.js';
 import Complaint from './models/Complaint.js';
 import Route from './models/Route.js';
 import Schedule from './models/Schedule.js';
+import VehicleLocation from './models/VehicleLocation.js';
 import { PEELAMEDU_ZONES } from './utils/zonesData.js';
 
 export async function seedAll() {
@@ -117,6 +118,17 @@ export async function seedAll() {
         },
       ]);
       console.log('✅ Seeded Peelamedu fleet vehicles');
+    }
+
+    // 3b. Initial Vehicle GPS Locations for Real-time Tracking
+    const locCount = await VehicleLocation.countDocuments();
+    if (locCount === 0) {
+      await VehicleLocation.insertMany([
+        { vehicleId: 'GCT-001', latitude: 11.0244, longitude: 77.0028, recordedAt: new Date() },
+        { vehicleId: 'JCB-001', latitude: 11.0250, longitude: 77.0100, recordedAt: new Date() },
+        { vehicleId: 'ML-001',  latitude: 11.0280, longitude: 77.0040, recordedAt: new Date() },
+      ]);
+      console.log('✅ Seeded initial vehicle tracking coordinates');
     }
 
     // 4. Citizens (Mapped to Peelamedu Area, Zone, and Street)
