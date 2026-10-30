@@ -560,7 +560,7 @@ function ComplaintDetailModal({ complaint, onClose, apiBase }) {
             <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Photo Evidence</div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               {images.map((img, i) => {
-                const backendBase = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
+                const backendBase = (import.meta.env.VITE_API_URL || 'https://cleanconnect-api-oenj.onrender.com/api').replace(/\/api\/?$/, '');
                 const imgSrc = img.startsWith('http') ? img : `${backendBase}${img.startsWith('/') ? '' : '/'}${img}`;
                 return (
                   <a key={i} href={imgSrc} target="_blank" rel="noopener noreferrer">
